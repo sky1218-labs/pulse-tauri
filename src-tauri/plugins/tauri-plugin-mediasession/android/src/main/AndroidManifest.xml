@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- ExoPlayer runs with WAKE_MODE_LOCAL so playback continues with
+         the screen off; that requires the wake-lock permission. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application>
+        <!-- Media3 session service hosting the real ExoPlayer: Media3
+             generates the media notification from the player state and
+             delivers its buttons (and lock-screen / Bluetooth commands)
+             straight to the player — no broadcast receiver is involved.
+             This is the production pattern (Auxio, Gramophone, React
+             Native Track Player). It replaces the pre-0.1.10
+             MediaSessionCompat service + legacy MediaButtonReceiver pair
+             (crashed on every tap) and the 0.1.10 forwarding
+             SimpleBasePlayer service (buttons were no-ops). No
+             media-button receiver is declared: in Media3 the media3
+             MediaButtonReceiver exists only for playback resumption,
+             which this app does not implement. -->
+        <service
+            android:name=".PulsePlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

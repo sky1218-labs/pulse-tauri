@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "csp": null
+    },
+    "windows": [
+      {
+        "height": 844,
+        "label": "main",
+        "title": "Pulse",
+        "width": 390
+      }
+    ]
+  },
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "android": {
+      "debugApplicationIdSuffix": ".debug",
+      "minSdkVersion": 24
+    },
+    "category": "Music",
+    "copyright": "GPL-3.0-only — see LICENSE",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon-512.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "longDescription": "Pulse is a local-first music player: your library, playlists, settings and playback progress stay on your device. No account, no cloud sync, no streaming service dependency.",
+    "shortDescription": "Local-first music player",
+    "targets": "all"
+  },
+  "identifier": "dev.pulse.tauri",
+  "productName": "Pulse",
+  "version": "0.1.11"
+}

@@ -1,0 +1,32 @@
+[package]
+name = "pulse-tauri"
+version = "0.1.0"
+description = "Pulse — local-first music player (Tauri 2 rewrite of the Flutter original)"
+authors = ["Pulse contributors"]
+license = "GPL-3.0-only"
+edition = "2021"
+
+[lib]
+name = "pulse_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.6", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.7", features = ["protocol-asset"] }
+tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-fs = "=2.7.1"
+tauri-plugin-mediasession = { path = "plugins/tauri-plugin-mediasession" }
+serde = { version = "=1.0.229", features = ["derive"] }
+lofty = "=0.21.1"
+walkdir = "=2.5.1"
+
+# Optimise the release binary for size (smaller APK): the app is a WebView
+# shell around a small Rust core, so runtime speed is not the bottleneck.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

@@ -1,0 +1,241 @@
+name: Release Android
+
+# Push a tag like v0.1.0 to publish a GitHub Release with the Android builds,
+# or run manually (workflow_dispatch) to produce CI artifacts without a release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Never run two builds for the same ref at once; a newer manual dispatch
+# cancels the stale one. Tagged releases are never cancelled.
+concurrency:
+  group: release-android-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  android:
+    name: Android APK + AAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.1"
+          cache: npm
+
+      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: temurin
+          java-version: "17.0.21"
+
+      # NOTE: android-actions/setup-android@v3 fails on current runners —
+      # it tries to install the legacy 'tools' package, which no longer
+      # exists in the SDK repository ("Failed to find package 'tools'").
+      # ubuntu-latest runners already ship the Android SDK, so install
+      # exactly the packages we need with sdkmanager directly.
+      # The NDK is ~2 GB: cache it and skip the download on a cache hit.
+      - name: Cache Android NDK
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /usr/local/lib/android/sdk/ndk/27.2.12479018
+          key: ndk-27.2.12479018-${{ runner.os }}
+
+      - name: Set up Android SDK packages
+        run: |
+          SDKMANAGER=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -name sdkmanager -type f | sort -V | tail -1)
+          echo "Using $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          # NOTE: do NOT add "platforms;android-37" here — API 37 is not
+          # in the stable sdkmanager repository yet (verified 2026-11-22),
+          # but the ubuntu-latest image preinstalls the android-37.x
+          # platforms, and AGP 9.3 resolves compileSdk 37 against them.
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0"
+          if [ -d "$ANDROID_SDK_ROOT/ndk/27.2.12479018" ]; then
+            echo "NDK restored from cache — skipping download"
+          else
+            "$SDKMANAGER" "ndk;27.2.12479018"
+          fi
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      # Toolchain pinned (also in rust-toolchain.toml): "stable" floats and
+      # silently changes the compiler — and invalidates the Rust cache.
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: "1.100.0"
+          targets: aarch64-linux-android, armv7-linux-androideabi
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Init Android project (generated, not committed)
+        run: |
+          npm run tauri -- android init
+          # Gradle build cache + parallel workers for repeat builds.
+          cat >> src-tauri/gen/android/gradle.properties <<'EOF'
+          org.gradle.caching=true
+          org.gradle.parallel=true
+          org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+          EOF
+
+      # `tauri android init` ships the template's default launcher icon and a
+      # bare manifest, so overlay Pulse's committed Android resources, patch
+      # in the storage permissions, and swap in Pulse's MainActivity
+      # (src-tauri/android/MainActivity.kt requests the runtime permission).
+      - name: Apply Android customisations
+        run: |
+          RES=src-tauri/gen/android/app/src/main/res
+          cp -r src-tauri/icons/android/. "$RES"/
+          # Fail loudly if the overlay did not take (never ship the default icon).
+          cmp src-tauri/icons/android/mipmap-mdpi/ic_launcher.png "$RES/mipmap-mdpi/ic_launcher.png"
+          test -f "$RES/mipmap-anydpi-v26/ic_launcher.xml"
+          MANIFEST=src-tauri/gen/android/app/src/main/AndroidManifest.xml
+          # Foreground-service / notification permissions back the native
+          # media-session plugin (src-tauri/plugins/tauri-plugin-mediasession);
+          # its library manifest declares them too — duplicates merge away.
+          sed -i 's|<application|<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n\n    <application|' "$MANIFEST"
+          grep -q "READ_MEDIA_AUDIO" "$MANIFEST"
+          grep -q "FOREGROUND_SERVICE_MEDIA_PLAYBACK" "$MANIFEST"
+          grep -q "POST_NOTIFICATIONS" "$MANIFEST"
+          ACTIVITY=$(find src-tauri/gen/android/app/src/main/java -name "MainActivity.kt" | head -1)
+          test -n "$ACTIVITY"
+          cp src-tauri/android/MainActivity.kt "$ACTIVITY"
+          grep -q "READ_MEDIA_AUDIO" "$ACTIVITY"
+
+      # Caches ~/.gradle (dependency cache + build cache) across runs.
+      - name: Set up Gradle caching
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      # Signing: if the ANDROID_KEYSTORE_BASE64 secret exists, decode it and
+      # configure Gradle signing. Without secrets the build falls back to the
+      # debug keystore and the assets are clearly labelled as debug-signed.
+      - name: Configure release signing (optional)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            cat > src-tauri/gen/android/keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — APK will be debug-signed and labelled accordingly."
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build APK + AAB
+        # Split-per-ABI APKs (~1/3 the universal size each) + a universal AAB.
+        # --target is what actually limits the ABIs: without it cargo-mobile2
+        # builds all four targets (aarch64/armv7/x86/x86_64) no matter what
+        # rust-toolchain.toml lists — that is how v0.1.4 first shipped x86/x86_64.
+        # The AAB must be built in a separate invocation WITHOUT --split-per-abi:
+        # with the split flag cargo-mobile2 produces one single-arch AAB per
+        # target (bundleArm64Release, bundleArmRelease, ...) and only the first
+        # would be published — v0.1.3's AAB contained only the x86 lib.
+        run: |
+          npm run tauri -- android build --apk --split-per-abi --target aarch64 --target armv7
+          npm run tauri -- android build --aab --target aarch64 --target armv7
+
+      - name: Collect artifacts
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p artifacts
+          mapfile -t APKS < <(find src-tauri/gen/android -name "app-*-release*.apk" | sort)
+          AAB=$(find src-tauri/gen/android -name "*.aab" | head -1)
+          echo "Built APKs: ${APKS[*]}"
+          echo "Built AAB: $AAB"
+          test ${#APKS[@]} -gt 0
+          # Fail loudly unless exactly the two ARM APKs were built.
+          if [ "${#APKS[@]}" -ne 2 ]; then
+            echo "::error::Expected exactly 2 APKs (arm64 + arm), got ${#APKS[@]}: ${APKS[*]}"
+            exit 1
+          fi
+          if [ "$SIGNED" = "true" ]; then
+            # The Gradle template leaves APKs *-unsigned despite
+            # keystore.properties, so sign explicitly: zipalign, apksigner,
+            # then verify the certificate before publishing anything.
+            BT=$(find "$ANDROID_SDK_ROOT/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -1)
+          fi
+          for APK in "${APKS[@]}"; do
+            abi=$(basename "$APK" | sed -E 's/^app-(.+)-release.*\.apk$/\1/')
+            # Gradle names the splits arm/arm64; publish them under their
+            # full ABI names so the assets match the release notes.
+            case "$abi" in
+              arm64) abiname=arm64-v8a ;;
+              arm) abiname=armeabi-v7a ;;
+              *) echo "::error::Unexpected ABI '$abi' — releases ship arm64-v8a + armeabi-v7a only"; exit 1 ;;
+            esac
+            if [ "$SIGNED" = "true" ]; then
+              OUT="artifacts/pulse-android-${abiname}.apk"
+              "$BT/zipalign" -p -f 4 "$APK" "artifacts/aligned-${abi}.apk"
+              KS_PASS="$ANDROID_KEYSTORE_PASSWORD" KEY_PASS="$ANDROID_KEY_PASSWORD" \
+                "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" \
+                --ks-pass env:KS_PASS --key-pass env:KEY_PASS \
+                --ks-key-alias "$ANDROID_KEY_ALIAS" \
+                --out "$OUT" "artifacts/aligned-${abi}.apk"
+              rm "artifacts/aligned-${abi}.apk"
+              "$BT/apksigner" verify "$OUT"
+            else
+              # Debug-signed fallback: keep the name honest.
+              cp "$APK" "artifacts/pulse-android-${abiname}-debug.apk"
+            fi
+          done
+          if [ -n "$AAB" ]; then
+            cp "$AAB" artifacts/pulse-android-release.aab
+            if [ "$SIGNED" = "true" ]; then
+              jarsigner -keystore "$RUNNER_TEMP/release.jks" \
+                -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+                -keypass "$ANDROID_KEY_PASSWORD" \
+                artifacts/pulse-android-release.aab "$ANDROID_KEY_ALIAS"
+            fi
+            # The AAB must carry both ARM ABIs (Play serves per-device APKs
+            # from it); fail loudly if either native lib is missing.
+            for _abi in arm64-v8a armeabi-v7a; do
+              unzip -l artifacts/pulse-android-release.aab | grep -q "base/lib/${_abi}/" || {
+                echo "::error::AAB is missing the ${_abi} native lib"
+                exit 1
+              }
+            done
+          fi
+          # apksigner leaves .idsig sidecars next to signed APKs — never publish them.
+          rm -f artifacts/*.idsig
+          ls -la artifacts
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pulse-android
+          path: artifacts/*
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            Pulse (Tauri rewrite) for Android.
+
+            - Most users: install `pulse-android-arm64-v8a.apk`
+              (or the matching `*-debug.apk` when this release was built
+              without the release signing secrets — debug-signed builds
+              cannot be upgraded in place over properly signed ones).
+            - Older 32-bit phones: `pulse-android-armeabi-v7a.apk`.
+            - `pulse-android-release.aab` is for app stores, not sideloading.

@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Allows the media-session commands Pulse's player uses to control the native Android ExoPlayer (queue, transport, volume/speed, state)."
+permissions = ["allow-set-queue", "allow-play", "allow-pause", "allow-next", "allow-previous", "allow-seek-to", "allow-seek-by", "allow-set-volume", "allow-set-speed", "allow-set-stop-at-track-end", "allow-stop-playback", "allow-get-state"]
