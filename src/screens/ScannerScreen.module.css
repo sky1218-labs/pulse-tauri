@@ -1,0 +1,184 @@
+/* Scanner — hero, progress card, folder selection, sticky summary bar. */
+.scanHero {
+  flex: 1;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-xl);
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.scanHero > svg {
+  width: 48px;
+  height: 48px;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-lg);
+}
+.scanHero h2 { font-size: var(--fs-headline); font-weight: var(--fw-bold); margin: 0 0 var(--sp-sm); }
+.scanHero p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 var(--sp-lg);
+}
+.scanHero .errorText { color: var(--error); }
+.scanHero .errorDetail {
+  color: var(--text-hint);
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+}
+.heroButtons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  width: 100%;
+}
+.heroButtons .btnFull { width: 100%; }
+
+.scanCard {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: var(--sp-lg);
+  min-width: 0;
+}
+.scHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-mdsm);
+  font-size: var(--fs-title);
+  font-weight: var(--fw-semibold);
+}
+.scLine {
+  color: var(--text-secondary);
+  font-size: var(--fs-label);
+  margin-top: var(--sp-mdsm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.checkCircle {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.checkCircle svg { width: 24px; height: 24px; }
+.scanningWrap { padding-top: var(--sp-lg); }
+
+.doneActions { display: flex; gap: var(--sp-sm); margin-top: var(--sp-mdsm); }
+.flexBtn { flex: 1; }
+
+.selHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-sm) 0;
+  margin-bottom: var(--sp-xs);
+}
+.selCount { color: var(--text-secondary); font-size: var(--fs-label); }
+.selActions { display: flex; gap: var(--sp-sm); }
+.noFolders { color: var(--text-secondary); }
+
+.folderRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-mdsm);
+  margin-inline: calc(-1 * var(--sp-mdsm));
+  width: calc(100% + 2 * var(--sp-mdsm));
+  border-radius: var(--radius-card);
+  text-align: left;
+}
+.fIc { color: var(--text-secondary); display: inline-flex; flex: none; }
+.fIc svg { width: 20px; height: 20px; }
+.fMeta { flex: 1; min-width: 0; }
+.fName {
+  display: block;
+  font-size: 14px;
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.folderRowSel .fName { color: var(--text); font-weight: var(--fw-medium); }
+.fPath {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-hint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.countBadge {
+  background: var(--elevated);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-caption);
+  padding: var(--sp-xs) var(--sp-sm);
+  flex: none;
+}
+
+/* Monitored-folder rows (static, track-row anatomy). */
+.folderTrackRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-mdsm);
+  height: 64px;
+  padding: 0 var(--sp-mdsm);
+  border-radius: var(--radius-card);
+  min-width: 0;
+}
+.ftArt {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(150deg, var(--elevated), var(--interactive));
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  overflow: hidden;
+}
+.ftArt svg { width: 20px; height: 20px; }
+.ftMeta { flex: 1; min-width: 0; }
+.ftTitle {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Lets the last folder row scroll fully clear of the sticky bar. */
+.summarySpacer { height: 84px; flex: none; }
+.summaryBar {
+  position: sticky;
+  bottom: 0;
+  background: var(--elevated);
+  margin: auto calc(-1 * var(--sp-md)) calc(-1 * var(--sp-md));
+  padding: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+.sbMeta { flex: 1; min-width: 0; }
+.sbTitle { font-size: 14px; font-weight: var(--fw-medium); }
+.sbSub { font-size: var(--fs-label); color: var(--text-secondary); margin-top: 2px; }
+.saveBtn { min-width: 96px; }
+
+.importButtons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-sm);
+}

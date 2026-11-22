@@ -1,0 +1,46 @@
+.appShell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 560px;
+  margin: 0 auto;
+  background: var(--bg);
+  padding-top: var(--inset-top);
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* Always mounted, always flex:1 — even while a lazy screen suspends — so
+   the shell rows below it (resume card, mini player) never move. */
+.screenRegion {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Resume prompt — in-flow shell row above the mini player (the old fixed
+   card overlapped it). */
+.resumeCard {
+  flex: none;
+  margin: 0 var(--sp-sm) var(--sp-sm);
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: resumeIn var(--motion-medium) var(--ease-out);
+}
+@keyframes resumeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rcTitle { font-size: 14px; font-weight: var(--fw-medium); margin-bottom: var(--sp-xs); }
+.resumeCard p {
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  margin: 0 0 var(--sp-mdsm);
+}
+.resumeActions { display: flex; justify-content: flex-end; gap: var(--sp-sm); }

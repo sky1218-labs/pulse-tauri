@@ -1,12 +1,19 @@
 import { useMemo, useState } from "react";
-import { Icon, TrackRow, Dialog, ConfirmDialog } from "../components/components";
+import { Icon } from "../ui/primitives/Icon";
+import { TrackRow } from "../ui/primitives/TrackRow";
+import { Dialog, ConfirmDialog } from "../ui/primitives/Dialog";
+import btn from "../ui/primitives/Button.module.css";
+import layout from "../styles/layout.module.css";
 import type { Track } from "../utils/playlist";
-import { useLibrary } from "../store";
+import { displayTitle } from "../utils/playlist";
+import { useLibrary, usePlayer } from "../store";
+import styles from "./HomeScreen.module.css";
 
 export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
   goScanner: () => void; goPlaylists: () => void; goSettings: () => void;
 }) {
   const { data, t, addToPlaylist, removeTrackFromLibrary, clearLibrary } = useLibrary();
+  const player = usePlayer();
   const [query, setQuery] = useState("");
   const [menuTrack, setMenuTrack] = useState<Track | null>(null);
   const [pickPlaylistFor, setPickPlaylistFor] = useState<Track | null>(null);
@@ -21,76 +28,107 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
       [tr.title, tr.artist ?? "", tr.album ?? ""].some((f) => f.toLowerCase().includes(q)));
   }, [data.tracks, query]);
 
+  /* Recently added — derived from the existing Track.addedAt stamps
+     (no new persisted fields); shown only when enough tracks carry one. */
+  const recent = useMemo(() => {
+    const stamped = data.tracks.filter((tr) => typeof tr.addedAt === "number" && tr.addedAt > 0);
+    if (stamped.length < 4) return [];
+    return [...stamped].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)).slice(0, 8);
+  }, [data.tracks]);
+
   const showToast = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2200);
   };
 
   return (
-    <div className="screen pad16">
-      <div className="screen-header" style={{ alignItems: "flex-start", paddingBottom: 0 }}>
+    <div className={`${layout.screen} ${layout.pad16}`}>
+      <div className={styles.homeHeader}>
         <div>
-          <h1 className="home-h1">{t("musicLibrary")}</h1>
-          <div className="subtitle" style={{ fontSize: 14, marginTop: 6 }}>{t("exploreYourMusic")}</div>
+          <h1 className={styles.displayTitle}>{t("musicLibrary")}</h1>
+          <div className={styles.homeSubtitle}>{t("exploreYourMusic")}</div>
         </div>
-        <span style={{ display: "flex", gap: 2 }}>
-          <button className="icon-btn" style={{ color: "var(--text-secondary)" }} onClick={goSettings} aria-label={t("settings")}>
+        <span className={styles.headerActions}>
+          <button className={`${btn.iconBtn} ${styles.headerIcon}`} onClick={goSettings} aria-label={t("settings")}>
             <Icon name="settings" />
           </button>
-          <button className="icon-btn" style={{ color: "var(--text-secondary)" }} onClick={() => setShowHomeMenu(true)} aria-label={t("clearLibrary")}>
+          <button className={`${btn.iconBtn} ${styles.headerIcon}`} onClick={() => setShowHomeMenu(true)} aria-label={t("clearLibrary")}>
             <Icon name="moreHoriz" />
           </button>
         </span>
       </div>
 
-      <div className="home-actions">
-        <button className="btn btn-primary" onClick={goScanner}>
+      <div className={styles.homeActions}>
+        <button className={`${btn.btn} ${btn.btnPrimary} ${styles.actionBtn}`} onClick={goScanner}>
           <Icon name="radar" /> {t("scanMusic")}
         </button>
-        <button className="btn btn-secondary" onClick={goPlaylists}>
+        <button className={`${btn.btn} ${btn.btnSecondary} ${styles.actionBtn}`} onClick={goPlaylists}>
           <Icon name="queue" /> {t("playlist")}
         </button>
       </div>
 
-      <div className="search-pill">
+      <div className={styles.searchPill}>
         <Icon name="search" />
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchHint")} />
         {query ? (
-          <button className="icon-btn" style={{ width: 28, height: 28 }} onClick={() => setQuery("")} aria-label="clear">
+          <button className={`${btn.iconBtn} ${styles.clearBtn}`} onClick={() => setQuery("")} aria-label="clear">
             <Icon name="close" />
           </button>
         ) : null}
       </div>
 
+      {!query && recent.length > 0 && data.tracks.length > 0 ? (
+        <>
+          <div className={layout.sectionTitle}>{t("recentlyAdded")}</div>
+          <div className={styles.recentRow}>
+            {recent.map((tr) => (
+              <button
+                key={tr.id}
+                className={styles.recentCard}
+                onClick={() => void player.playTrack(tr, recent, { fromUserTap: true })}
+              >
+                <span className={styles.recentArt}>
+                  {tr.artworkPath ? <img src={tr.artworkPath} alt="" /> : <Icon name="music" />}
+                </span>
+                <div className={styles.recentTitle}>{displayTitle(tr)}</div>
+                <div className={styles.recentArtist}>{tr.artist || ""}</div>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+
       {data.tracks.length === 0 ? (
-        <div className="empty-state">
+        <div className={layout.emptyState}>
           <Icon name="music" />
-          <div className="es-title">{t("emptyLibrary")}</div>
-          <div className="es-hint">{t("emptyLibraryHint")}</div>
-          <button className="btn btn-primary" onClick={goScanner}>{t("scanMusic")}</button>
+          <div className={layout.esTitle}>{t("emptyLibrary")}</div>
+          <div className={layout.esHint}>{t("emptyLibraryHint")}</div>
+          <button className={`${btn.btn} ${btn.btnPrimary}`} onClick={goScanner}>{t("scanMusic")}</button>
         </div>
       ) : tracks.length === 0 ? (
-        <div className="empty-state">
+        <div className={layout.emptyState}>
           <Icon name="search" />
-          <div className="es-title">{t("noResults")}</div>
-          <div className="es-hint">{t("tryOtherKeywords")}</div>
+          <div className={layout.esTitle}>{t("noResults")}</div>
+          <div className={layout.esHint}>{t("tryOtherKeywords")}</div>
         </div>
       ) : (
-        <div className="home-list">
-          <div className="list-count">{query ? `${t("results")} · ${tracks.length}` : `${tracks.length}`}</div>
+        <>
+          <div className={styles.listCount}>{query ? `${t("results")} · ${tracks.length}` : `${tracks.length}`}</div>
+          <div className={styles.rowBleed}>
           {tracks.map((tr) => (
             <TrackRow key={tr.id} track={tr} queue={tracks} onMenu={setMenuTrack} />
           ))}
-        </div>
+          </div>
+        </>
       )}
 
       {menuTrack ? (
         <Dialog title={menuTrack.title} onClose={() => setMenuTrack(null)}>
           <div>
-            <button className="menu-item" onClick={() => { setPickPlaylistFor(menuTrack); setMenuTrack(null); }}>
+            <button className={btn.menuItem} onClick={() => { setPickPlaylistFor(menuTrack); setMenuTrack(null); }}>
               <Icon name="addList" /> {t("add")} · {t("playlist")}
             </button>
-            <button className="menu-item danger" onClick={() => { removeTrackFromLibrary(menuTrack.id); setMenuTrack(null); showToast(t("musicDeleted")); }}>
+            <button className={`${btn.menuItem} ${btn.menuItemDanger}`} onClick={() => { removeTrackFromLibrary(menuTrack.id); setMenuTrack(null); showToast(t("musicDeleted")); }}>
               <Icon name="trash" /> {t("removeFromLibrary")}
             </button>
           </div>
@@ -102,9 +140,9 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
           {data.playlists.length === 0 ? (
             <p>{t("noPlaylistsHint")}</p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className={styles.pickList}>
               {data.playlists.map((p) => (
-                <button key={p.id} className="btn btn-secondary" onClick={() => {
+                <button key={p.id} className={`${btn.btn} ${btn.btnSecondary}`} onClick={() => {
                   addToPlaylist(p.id, [pickPlaylistFor]);
                   setPickPlaylistFor(null);
                   showToast(t("songsAdded", { n: 1 }));
@@ -118,7 +156,7 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
       {showHomeMenu ? (
         <Dialog title={t("musicLibrary")} onClose={() => setShowHomeMenu(false)}>
           <div>
-            <button className="menu-item danger" onClick={() => { setShowHomeMenu(false); setConfirmClearLibrary(true); }}>
+            <button className={`${btn.menuItem} ${btn.menuItemDanger}`} onClick={() => { setShowHomeMenu(false); setConfirmClearLibrary(true); }}>
               <Icon name="trash" /> {t("clearLibrary")}
             </button>
           </div>
@@ -131,7 +169,7 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
           onConfirm={() => { clearLibrary(); setConfirmClearLibrary(false); showToast(t("libraryCleared")); }} />
       ) : null}
 
-      {toast ? <div className="toast">{toast}</div> : null}
+      {toast ? <div className={layout.toast}>{toast}</div> : null}
     </div>
   );
 }

@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
-import { Icon, TrackRow, Dialog, ConfirmDialog } from "../components/components";
-import { formatTime } from "../utils/time";
+import { Icon } from "../ui/primitives/Icon";
+import { TrackRow } from "../ui/primitives/TrackRow";
+import { Dialog, ConfirmDialog } from "../ui/primitives/Dialog";
+import dialogStyles from "../ui/primitives/Dialog.module.css";
+import btn from "../ui/primitives/Button.module.css";
+import layout from "../styles/layout.module.css";
 import { reorderTracks, removeTrack, type Track } from "../utils/playlist";
 import { useLibrary } from "../store";
+import styles from "./PlaylistDetailScreen.module.css";
 
 export function PlaylistDetailScreen({ playlistId, goBack }: { playlistId: string; goBack: () => void }) {
   const { data, t, tracksById, setPlaylistTracks, addToPlaylist } = useLibrary();
@@ -20,10 +25,10 @@ export function PlaylistDetailScreen({ playlistId, goBack }: { playlistId: strin
 
   if (!playlist) {
     return (
-      <div className="screen">
-        <div className="empty-state">
-          <div className="es-title">{t("playlistNotFound")}</div>
-          <button className="btn btn-primary" onClick={goBack}>{t("close")}</button>
+      <div className={layout.screen}>
+        <div className={layout.emptyState}>
+          <div className={layout.esTitle}>{t("playlistNotFound")}</div>
+          <button className={`${btn.btn} ${btn.btnPrimary}`} onClick={goBack}>{t("close")}</button>
         </div>
       </div>
     );
@@ -45,47 +50,47 @@ export function PlaylistDetailScreen({ playlistId, goBack }: { playlistId: strin
   };
 
   return (
-    <div className="screen pad16">
-      <div className="screen-header">
-        <button className="icon-btn" onClick={goBack} aria-label="back"><Icon name="back" /></button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{playlist.name}</h1>
-          <div className="subtitle">
+    <div className={`${layout.screen} ${layout.pad16}`}>
+      <div className={layout.screenHeader}>
+        <button className={btn.iconBtn} onClick={goBack} aria-label="back"><Icon name="back" /></button>
+        <div className={layout.headerMeta}>
+          <h1 className={styles.plTitle}>{playlist.name}</h1>
+          <div className={layout.subtitle}>
             {t("songsCount", { n: tracks.length })}
           </div>
         </div>
         {tracks.length > 1 ? (
           <button
-            className={`edit-toggle${editing ? " on" : ""}`}
+            className={`${styles.editToggle}${editing ? ` ${styles.editToggleOn}` : ""}`}
             onClick={() => setEditing((v) => !v)}
           >{editing ? t("done") : t("editOrder")}</button>
         ) : null}
         {editing ? null : (
-          <button className="icon-btn filled" onClick={() => { setSelected(new Set()); setAdding(true); }} aria-label={t("addSongs")}>
+          <button className={`${btn.iconBtn} ${btn.iconBtnFilled}`} onClick={() => { setSelected(new Set()); setAdding(true); }} aria-label={t("addSongs")}>
             <Icon name="plus" />
           </button>
         )}
       </div>
 
       {tracks.length === 0 ? (
-        <div className="empty-state">
+        <div className={layout.emptyState}>
           <Icon name="queue" />
-          <div className="es-title">{t("playlistEmpty")}</div>
-          <div className="es-hint">{t("tapToAddSongs")}</div>
-          <button className="btn btn-primary" onClick={() => setAdding(true)}>{t("addSongs")}</button>
+          <div className={layout.esTitle}>{t("playlistEmpty")}</div>
+          <div className={layout.esHint}>{t("tapToAddSongs")}</div>
+          <button className={`${btn.btn} ${btn.btnPrimary}`} onClick={() => setAdding(true)}>{t("addSongs")}</button>
         </div>
       ) : editing ? (
-        <div className="edit-list">
+        <div className={styles.editList}>
           {tracks.map((tr, i) => (
-            <div key={tr.id} className="edit-row">
+            <div key={tr.id} className={styles.editRow}>
               <TrackRow track={tr} queue={tracks} inert />
-              <button className="icon-btn move-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="move up"><Icon name="up" /></button>
-              <button className="icon-btn move-btn" disabled={i === tracks.length - 1} onClick={() => move(i, 1)} aria-label="move down"><Icon name="down" /></button>
+              <button className={`${btn.iconBtn} ${styles.moveBtn}`} disabled={i === 0} onClick={() => move(i, -1)} aria-label="move up"><Icon name="up" /></button>
+              <button className={`${btn.iconBtn} ${styles.moveBtn}`} disabled={i === tracks.length - 1} onClick={() => move(i, 1)} aria-label="move down"><Icon name="down" /></button>
             </div>
           ))}
         </div>
       ) : (
-        <div className="row-list">
+        <div className={styles.rowBleed}>
           {tracks.map((tr) => (
             <TrackRow key={tr.id} track={tr} queue={tracks} onMenu={setRemoveTarget} />
           ))}
@@ -103,23 +108,23 @@ export function PlaylistDetailScreen({ playlistId, goBack }: { playlistId: strin
       ) : null}
 
       {adding ? (
-        <Dialog title={t("addSongs")} onClose={() => setAdding(false)} centered className="r28">
+        <Dialog title={t("addSongs")} onClose={() => setAdding(false)} centered radius="r28">
           {data.tracks.length === 0 ? (
             <p>{t("noSongsAvailable")}</p>
           ) : (
             <>
-              <div style={{ marginBottom: 12, color: "var(--text-secondary)", fontSize: 13 }}>
+              <div className={styles.selectedCount}>
                 {t("selectedCount", { n: selected.size })}
               </div>
-              <div style={{ maxHeight: "46dvh", overflowY: "auto" }}>
+              <div className={styles.addList}>
                 {data.tracks.map((tr) => (
                   <TrackRow key={tr.id} track={tr} queue={[]} selected={selected.has(tr.id)} onSelect={toggleSelect} />
                 ))}
               </div>
-              <div className="dialog-actions">
-                <button className="btn btn-ghost" onClick={() => setAdding(false)}>{t("cancel")}</button>
+              <div className={dialogStyles.dialogActions}>
+                <button className={`${btn.btn} ${btn.btnGhost}`} onClick={() => setAdding(false)}>{t("cancel")}</button>
                 <button
-                  className="btn btn-primary"
+                  className={`${btn.btn} ${btn.btnPrimary}`}
                   disabled={selected.size === 0}
                   onClick={() => {
                     const chosen = data.tracks.filter((x) => selected.has(x.id));
@@ -135,7 +140,7 @@ export function PlaylistDetailScreen({ playlistId, goBack }: { playlistId: strin
         </Dialog>
       ) : null}
 
-      {toast ? <div className="toast">{toast}</div> : null}
+      {toast ? <div className={layout.toast}>{toast}</div> : null}
     </div>
   );
 }

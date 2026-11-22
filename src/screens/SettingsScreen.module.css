@@ -1,0 +1,86 @@
+/* Settings — borderless surface tiles under section headers
+   (settings_screen.dart in the original). */
+.setSection {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin: var(--sp-xl) 0 var(--sp-md);
+}
+.setSectionFirst { margin-top: 0; }
+
+.setCard {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: var(--sp-md);
+  margin-bottom: var(--sp-sm);
+}
+.setCardRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+.setCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
+}
+.setMeta { flex: 1; min-width: 0; }
+.sTitle { font-size: var(--fs-body); font-weight: var(--fw-medium); }
+.sDesc {
+  font-size: var(--fs-label);
+  color: var(--text-hint);
+  margin-top: var(--sp-xs);
+  line-height: 1.45;
+}
+.sValue {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+button.setCard { width: 100%; text-align: left; cursor: pointer; }
+button.setCard:hover { background: var(--interactive); }
+.setCard .chev { color: var(--text-faint); flex: none; display: inline-flex; }
+.setCard .chev svg { width: 22px; height: 22px; }
+.setCard .leadIc { color: var(--text-secondary); flex: none; display: inline-flex; }
+.setCard .leadIc svg { width: 22px; height: 22px; }
+.setCardDanger .sTitle { color: var(--error); }
+.setCardDanger .leadIc { color: var(--error); }
+.blockSpan { display: block; }
+
+.langRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+.langOpt {
+  flex: none;
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--radius-full);
+  background: var(--interactive);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.langOpt:active { transform: scale(0.96); }
+.langOptSelected { background: var(--accent); color: #fff; font-weight: var(--fw-semibold); }
+
+.updateNote {
+  color: var(--text-secondary);
+  font-size: var(--fs-label);
+  margin: 0 var(--sp-xs) var(--sp-mdsm);
+}
+.updateNoteError { color: var(--error); }
+
+.appInfo { text-align: center; padding: var(--sp-lg) 0 var(--sp-md); }
+.aiName { color: var(--text-hint); font-size: 14px; font-weight: var(--fw-medium); }
+.aiVer { color: var(--text-faint); font-size: var(--fs-caption); margin-top: var(--sp-xs); }

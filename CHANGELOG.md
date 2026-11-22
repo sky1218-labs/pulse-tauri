@@ -8,6 +8,17 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 0.2.0 — 2026-11-23
+
+UI redesign — same app, same data. The storage schema, package id and signing key are unchanged, so libraries, playlists, favorites, playback positions and settings carry over untouched.
+
+- Design system: every visual value now lives in `src/styles/tokens.css` (spacing, radii, type scale, motion); screens and components consume tokens through co-located CSS Modules — the global stylesheet and scattered inline styles are gone
+- Now Playing: ambient background tinted by the current track's artwork (average colour, darkened to keep white text at ≥ 4.5:1 contrast, cross-faded on track change); falls back to the plain gradient when a track has no artwork
+- Mini player is now a floating glass pill — the app's only `backdrop-filter` surface, with an opaque fallback where backdrop-filter is unsupported
+- Library home: display-size title and a "Recently added" artwork row (derived from the existing per-track timestamps); track rows unified at a fixed 64px with one anatomy everywhere
+- Playlists are a 2-column artwork card grid (cover = first track artwork in the playlist)
+- Code layout: shared UI moved to `src/ui/primitives` + `src/ui/composites`; new dependency `fast-average-color` 9.6.0 (pinned) for artwork colour extraction
+
 ## 0.1.12 — 2026-11-22
 
 - The project moved to the **sky1218-labs** organization (https://github.com/sky1218-labs/pulse-tauri). All in-app and documentation links now point at the canonical location (the in-app update check included); the old addresses redirect. No functional changes.

@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Icon, Dialog, Equalizer, PlayPauseIcon } from "../components/components";
+import { Icon, Equalizer, PlayPauseIcon } from "../ui/primitives/Icon";
+import { Dialog } from "../ui/primitives/Dialog";
+import dialogStyles from "../ui/primitives/Dialog.module.css";
+import btn from "../ui/primitives/Button.module.css";
+import forms from "../ui/primitives/forms.module.css";
+import layout from "../styles/layout.module.css";
 import { displayTitle } from "../utils/playlist";
 import { formatTime } from "../utils/time";
 import { formatSpeed, quantizeSpeed, SPEED_PRESETS } from "../utils/playbackSpeed";
 import { volumeToPercentage } from "../utils/volume";
+import { useArtworkAmbient } from "../utils/artworkColor";
 import { tap } from "../utils/haptics";
 import { useLibrary, usePlayer } from "../store";
-
-/** Quick-pick speed chips on the player card (the dialog keeps the full set + fine slider). */
+import styles from "./PlayerScreen.module.css";
 
 /** Original VolumeSlider icon logic: off / mute / down / up by level. */
 function volumeIconName(v: number): "volumeOff" | "volumeMute" | "volumeDown" | "volume" {
@@ -25,6 +30,8 @@ function fmtSpeedX(v: number): string {
   return Number.isInteger(q) ? `${q.toFixed(1)}x` : `${q}x`;
 }
 
+/* Slider fill is a runtime percentage — painted as an inline background
+   gradient over the module track styles (sanctioned inline style). */
 function fillStyle(value: number, min: number, max: number): React.CSSProperties {
   const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
   return { background: `linear-gradient(90deg, var(--slider-fill) ${pct}%, var(--slider-track) ${pct}%)` };
@@ -38,25 +45,24 @@ export function Wheel({ value, max, onChange, label, labelBelow, compact }: {
   label?: string; labelBelow?: boolean; compact?: boolean;
 }) {
   const offsets = compact ? [-1, 0, 1] : [-2, -1, 0, 1, 2];
-  const rowH = compact ? 30 : 40;
+  const rowClass = `${styles.wRow}${compact ? ` ${styles.wRowCompact}` : ""}`;
   return (
-    <div className="wheel">
-      {label && !labelBelow ? <div className="w-label">{label}</div> : null}
-      <div className="w-band" style={{ height: offsets.length * rowH }}>
+    <div className={styles.wheel}>
+      {label && !labelBelow ? <div className={styles.wLabel}>{label}</div> : null}
+      <div className={styles.wBand}>
         {offsets.map((off) => {
           const v = value + off;
-          if (v < 0 || v > max) return <div key={off} className="w-row" style={{ height: rowH }} />;
+          if (v < 0 || v > max) return <div key={off} className={rowClass} />;
           return (
             <button
               key={off}
-              style={{ height: rowH }}
-              className={`w-row ${off === 0 ? "sel" : Math.abs(off) === 1 ? "near" : "far"}`}
+              className={`${rowClass} ${off === 0 ? styles.wRowSel : Math.abs(off) === 1 ? styles.wRowNear : styles.wRowFar}`}
               onClick={() => onChange(v)}
             >{pad2(v)}</button>
           );
         })}
       </div>
-      {label && labelBelow ? <div className="w-label-below">{label}</div> : null}
+      {label && labelBelow ? <div className={styles.wLabelBelow}>{label}</div> : null}
     </div>
   );
 }
@@ -126,63 +132,63 @@ function SleepTimerDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Dialog title={t("sleepTimerTitle")} onClose={onClose} centered bare className="on-elevated">
-      <div className="sleep-head">
-        <span className="moon-circle"><Icon name="moon" /></span>
-        <h2>{t("sleepTimerTitle")}</h2>
-        <div className="sub">
+    <Dialog title={t("sleepTimerTitle")} onClose={onClose} centered bare tone="elevated">
+      <div className={styles.sleepHead}>
+        <span className={styles.moonCircle}><Icon name="moon" /></span>
+        <h2 className={styles.sleepTitle}>{t("sleepTimerTitle")}</h2>
+        <div className={styles.sleepSub}>
           {active
             ? `${t("sleepTimerActive")}${player.sleepRemainingMs !== null && !player.sleepTimer?.endOfTrack ? ` · ${formatTime(player.sleepRemainingMs)}` : ""}`
             : t("sleepTimerSetTime")}
         </div>
       </div>
 
-      <div className="preset-grid">
+      <div className={styles.presetGrid}>
         {SLEEP_PRESETS.map((p) => (
           <button
             key={p.ms}
-            className={`preset-card${sel.kind === "preset" && sel.ms === p.ms ? " selected" : ""}`}
+            className={`${styles.presetCard}${sel.kind === "preset" && sel.ms === p.ms ? ` ${styles.presetCardSelected}` : ""}`}
             onClick={() => setSel({ kind: "preset", ms: p.ms })}
           >
-            <span className="p-val">{p.label}</span>
-            <span className="p-unit">{t(p.unitKey)}</span>
+            <span className={styles.pVal}>{p.label}</span>
+            <span className={styles.pUnit}>{t(p.unitKey)}</span>
           </button>
         ))}
         <button
-          className={`preset-card${sel.kind === "endOfTrack" ? " selected" : ""}`}
+          className={`${styles.presetCard}${sel.kind === "endOfTrack" ? ` ${styles.presetCardSelected}` : ""}`}
           onClick={() => setSel({ kind: "endOfTrack" })}
         >
-          <span className="p-val"><Icon name="music" /></span>
-          <span className="p-unit">{t("endOfTrack")}</span>
+          <span className={styles.pVal}><Icon name="music" /></span>
+          <span className={styles.pUnit}>{t("endOfTrack")}</span>
         </button>
       </div>
 
       <button
-        className={`custom-card${sel.kind === "custom" ? " selected" : ""}`}
+        className={`${styles.customCard}${sel.kind === "custom" ? ` ${styles.customCardSelected}` : ""}`}
         onClick={() => setSel({ kind: "custom" })}
       >
-        <span className="tune-ic"><TuneIcon /></span>
+        <span className={styles.tuneIc}><TuneIcon /></span>
         <span>{sel.kind === "custom" ? customText() : t("customTime")}</span>
       </button>
 
       {sel.kind === "custom" ? (
-        <div className="custom-picker">
-          <div className="wheels">
+        <div className={styles.customPicker}>
+          <div className={styles.wheels}>
             <Wheel value={custom.h} max={23} label={t("hour")} labelBelow compact onChange={(v) => setCustom((c) => ({ ...c, h: v }))} />
-            <div className="w-sep">:</div>
+            <div className={styles.wSep}>:</div>
             <Wheel value={custom.m} max={59} label={t("minute")} labelBelow compact onChange={(v) => setCustom((c) => ({ ...c, m: v }))} />
-            <div className="w-sep">:</div>
+            <div className={styles.wSep}>:</div>
             <Wheel value={custom.s} max={59} label={t("second")} labelBelow compact onChange={(v) => setCustom((c) => ({ ...c, s: v }))} />
           </div>
         </div>
       ) : null}
 
-      <div className="dialog-actions stretch">
+      <div className={`${dialogStyles.dialogActions} ${dialogStyles.dialogActionsStretch}`}>
         {active ? (
-          <button className="btn btn-danger" onClick={() => { player.stopSleep(); onClose(); }}>{t("stopTimer")}</button>
+          <button className={`${btn.btn} ${btn.btnDanger} ${styles.stretchBtn}`} onClick={() => { player.stopSleep(); onClose(); }}>{t("stopTimer")}</button>
         ) : null}
-        <button className="btn btn-secondary" onClick={onClose}>{t("cancel")}</button>
-        <button className="btn btn-primary" onClick={start}>
+        <button className={`${btn.btn} ${btn.btnSecondary} ${styles.stretchBtn}`} onClick={onClose}>{t("cancel")}</button>
+        <button className={`${btn.btn} ${btn.btnPrimary} ${styles.stretchBtn}`} onClick={start}>
           <Icon name="play" /> {active ? t("update") : t("start")}
         </button>
       </div>
@@ -202,31 +208,28 @@ function JumpToTimeDialog({ onClose }: { onClose: () => void }) {
   const valid = selectedMs <= player.durationMs;
 
   return (
-    <Dialog title={t("jumpToTimeTitle")} onClose={onClose} centered bare className="r12 on-elevated pad32">
+    <Dialog title={t("jumpToTimeTitle")} onClose={onClose} centered bare radius="r12" tone="elevated" pad32>
       <div>
-        <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>{t("jumpToTimeTitle")}</h2>
-        <p style={{ margin: "0 0 20px", fontSize: 13 }}>{t("totalDuration", { duration: formatTime(player.durationMs) })}</p>
+        <div className={styles.jumpTitle}>{t("jumpToTimeTitle")}</div>
+        <div className={styles.jumpSub}>{t("totalDuration", { duration: formatTime(player.durationMs) })}</div>
       </div>
-      <div className="wheels">
+      <div className={styles.wheels}>
         <Wheel value={h} max={Math.max(0, maxH)} label={t("hourLabel")} onChange={setH} />
-        <div className="w-sep" style={{ marginTop: 117 }}>:</div>
+        <div className={`${styles.wSep} ${styles.wSepTall}`}>:</div>
         <Wheel value={m} max={59} label={t("minuteLabel")} onChange={setM} />
-        <div className="w-sep" style={{ marginTop: 117 }}>:</div>
+        <div className={`${styles.wSep} ${styles.wSepTall}`}>:</div>
         <Wheel value={s} max={59} label={t("secondLabel")} onChange={setS} />
       </div>
-      <div style={{
-        textAlign: "center", fontSize: 24, fontWeight: 500, fontVariantNumeric: "tabular-nums",
-        marginTop: 20, color: valid ? "var(--text)" : "var(--error)",
-      }}>
+      <div className={`${styles.jumpTime}${valid ? "" : ` ${styles.jumpTimeInvalid}`}`}>
         {pad2(h)}:{pad2(m)}:{pad2(s)}
       </div>
       {!valid ? (
-        <p style={{ color: "var(--error)", textAlign: "center", marginTop: 8 }}>{t("timeExceedsDuration")}</p>
+        <div className={styles.jumpError}>{t("timeExceedsDuration")}</div>
       ) : null}
-      <div className="dialog-actions">
-        <button className="btn btn-ghost" onClick={onClose}>{t("cancel")}</button>
+      <div className={dialogStyles.dialogActions}>
+        <button className={`${btn.btn} ${btn.btnGhost}`} onClick={onClose}>{t("cancel")}</button>
         <button
-          className="btn btn-primary"
+          className={`${btn.btn} ${btn.btnPrimary}`}
           disabled={!valid}
           onClick={() => { player.seek(selectedMs); onClose(); }}
         >{t("jump")}</button>
@@ -240,19 +243,19 @@ function SpeedDialog({ onClose }: { onClose: () => void }) {
   const player = usePlayer();
   return (
     <Dialog title={t("playbackSpeed")} onClose={onClose}>
-      <div className="speed-value">{fmtSpeedX(player.speed)}</div>
-      <div className="chip-row speed-chips">
+      <div className={styles.speedValue}>{fmtSpeedX(player.speed)}</div>
+      <div className={styles.speedChips}>
         {SPEED_PRESETS.map((sp) => (
           <button
             key={sp}
-            className={`chip${Math.abs(player.speed - sp) < 0.001 ? " selected" : ""}`}
+            className={`${btn.chip} ${styles.speedChip}${Math.abs(player.speed - sp) < 0.001 ? ` ${btn.chipSelected}` : ""}`}
             onClick={() => { tap(); player.setSpeed(sp); }}
           >{formatSpeed(sp)}</button>
         ))}
       </div>
-      <div style={{ marginTop: 16 }}>
+      <div className={styles.speedSliderWrap}>
         <input
-          className="range-white"
+          className={forms.rangeWhite}
           type="range"
           min={0.5}
           max={2}
@@ -261,7 +264,7 @@ function SpeedDialog({ onClose }: { onClose: () => void }) {
           style={fillStyle(player.speed, 0.5, 2)}
           onChange={(e) => player.setSpeed(parseFloat(e.target.value))}
         />
-        <div className="time-labels"><span>0.5x</span><span>{fmtSpeedX(player.speed)}</span><span>2x</span></div>
+        <div className={styles.timeLabels}><span>0.5x</span><span>{fmtSpeedX(player.speed)}</span><span>2x</span></div>
       </div>
       <p>{t("speedPresets")} · {t("normalSpeed")}: 1x</p>
     </Dialog>
@@ -276,6 +279,25 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
   const [showSpeed, setShowSpeed] = useState(false);
   const [, forceTick] = useState(0);
   const lastVolumeRef = useRef(1);
+
+  /* Ambient backdrop: each new artwork colour becomes a layer that fades
+     in (opacity only) over the previous one; the old layer is pruned once
+     the cross-fade has finished. No artwork → no layers → base gradient. */
+  const ambient = useArtworkAmbient(player.current?.artworkPath);
+  const [layers, setLayers] = useState<{ key: number; color: string }[]>([]);
+  const layerKeyRef = useRef(0);
+  const artworkSrc = player.current?.artworkPath ?? null;
+  useEffect(() => {
+    if (!artworkSrc) {
+      setLayers([]);
+      return;
+    }
+    if (!ambient) return;
+    const key = ++layerKeyRef.current;
+    setLayers((prev) => [...prev.slice(-1), { key, color: ambient }]);
+    const id = window.setTimeout(() => setLayers((prev) => prev.slice(-1)), 700);
+    return () => window.clearTimeout(id);
+  }, [ambient, artworkSrc]);
 
   const toggleMute = () => {
     tap();
@@ -294,14 +316,14 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
   }, [player.sleepTimer]);
 
   const header = (
-    <div className="screen-header player-header" style={{ paddingBottom: 0 }}>
-      <button className="icon-btn" onClick={goBack} aria-label="back"><Icon name="chevronDown" /></button>
-      <span className="np-pill">
+    <div className={styles.npHeader}>
+      <button className={`${btn.iconBtn} ${styles.hdrBtn}`} onClick={goBack} aria-label="back"><Icon name="chevronDown" /></button>
+      <span className={styles.npPill}>
         {player.playing ? <Equalizer /> : null}
         {t("nowPlaying")}
       </span>
       <button
-        className={`moon-btn${player.sleepTimer ? " active" : ""}`}
+        className={`${styles.moonBtn}${player.sleepTimer ? ` ${styles.moonBtnActive}` : ""}`}
         onClick={() => setShowSleep(true)}
         aria-label={t("sleepTimer")}
       >
@@ -314,11 +336,11 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
 
   if (!player.current) {
     return (
-      <div className="screen player-bg">
+      <div className={`${layout.screen} ${styles.playerRoot}`}>
         {header}
-        <div className="empty-state">
+        <div className={layout.emptyState}>
           <Icon name="music" />
-          <div className="es-title">{t("noTrackSelected")}</div>
+          <div className={layout.esTitle}>{t("noTrackSelected")}</div>
         </div>
         {showSleep ? <SleepTimerDialog onClose={() => setShowSleep(false)} /> : null}
       </div>
@@ -327,29 +349,36 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
 
   const track = player.current;
   return (
-    <div className="screen player-bg">
+    <div className={`${layout.screen} ${styles.playerRoot}${layers.length ? ` ${styles.ambientOn}` : ""}`}>
+      {layers.map((l) => (
+        <div
+          key={l.key}
+          className={styles.npAmbient}
+          style={{ "--np-ambient": l.color } as React.CSSProperties}
+        />
+      ))}
       {header}
-      <div className="player-screen">
-        <div className="player-art-wrap">
-          <div className={`player-art${player.playing ? " playing" : " paused"}`}>
+      <div className={styles.playerScreen}>
+        <div className={styles.playerArtWrap}>
+          <div className={`${styles.playerArt} ${player.playing ? styles.playerArtPlaying : styles.playerArtPaused}`}>
             {track.artworkPath ? <img src={track.artworkPath} alt="" /> : <Icon name="music" />}
           </div>
         </div>
-        <div className="player-title now">{displayTitle(track)}</div>
-        <div className="player-sub">{track.artist || t("unknownArtist")}</div>
+        <div className={styles.playerTitle}>{displayTitle(track)}</div>
+        <div className={styles.playerSub}>{track.artist || t("unknownArtist")}</div>
 
-        <div className="seek" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className={styles.seek}>
           <input
-            className="range-progress"
+            className={`${forms.rangeProgress} ${styles.seekInput}`}
             type="range"
             min={0}
             max={Math.max(1, player.durationMs)}
             value={Math.min(player.positionMs, player.durationMs || player.positionMs)}
-            style={{ ...fillStyle(player.positionMs, 0, Math.max(1, player.durationMs)), flex: 1 }}
+            style={{ ...fillStyle(player.positionMs, 0, Math.max(1, player.durationMs)) }}
             onChange={(e) => player.seek(parseFloat(e.target.value))}
             aria-label="seek"
           />
-          <button className="jump-btn" onClick={() => setShowJump(true)} aria-label={t("jumpToTime")}>
+          <button className={styles.jumpBtn} onClick={() => setShowJump(true)} aria-label={t("jumpToTime")}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
               <circle cx="12" cy="13.5" r="7" />
               <line x1="12" y1="13.5" x2="12" y2="9.8" />
@@ -358,38 +387,38 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
             </svg>
           </button>
         </div>
-        <div className="time-labels" style={{ width: "100%" }}>
+        <div className={styles.timeLabels}>
           <span>{formatTime(player.positionMs)}</span>
           <span>{formatTime(player.durationMs)}</span>
         </div>
 
-        <div className="controls">
-          <button className="skip-btn flip" onClick={player.skipBackward} aria-label={t("rewind")}>
+        <div className={styles.controls}>
+          <button className={`${styles.skipBtn} ${styles.skipFlip}`} onClick={player.skipBackward} aria-label={t("rewind")}>
             <Icon name="forward" />
-            <span className="skip-label">{data.settings.skipBackwardSeconds}s</span>
+            <span className={styles.skipLabel}>{data.settings.skipBackwardSeconds}s</span>
           </button>
-          <button className="icon-btn" onClick={player.previous} aria-label={t("previousTrack")}>
+          <button className={`${btn.iconBtn} ${styles.ctrlBtn}`} onClick={player.previous} aria-label={t("previousTrack")}>
             <Icon name="prev" />
           </button>
-          <button className="player-play" onClick={player.togglePlay} aria-label={t("playPause")}>
+          <button className={styles.playerPlay} onClick={player.togglePlay} aria-label={t("playPause")}>
             <PlayPauseIcon playing={player.playing} />
           </button>
-          <button className="icon-btn" onClick={player.next} aria-label={t("nextTrack")}>
+          <button className={`${btn.iconBtn} ${styles.ctrlBtn}`} onClick={player.next} aria-label={t("nextTrack")}>
             <Icon name="next" />
           </button>
-          <button className="skip-btn" onClick={player.skipForward} aria-label={t("fastForward")}>
+          <button className={styles.skipBtn} onClick={player.skipForward} aria-label={t("fastForward")}>
             <Icon name="forward" />
-            <span className="skip-label">{data.settings.skipForwardSeconds}s</span>
+            <span className={styles.skipLabel}>{data.settings.skipForwardSeconds}s</span>
           </button>
         </div>
 
-        <div className="player-card">
-          <div className="pc-row">
-            <button className="pc-icon-btn" onClick={toggleMute} aria-label={t("muteToggle")}>
+        <div className={styles.playerCard}>
+          <div className={styles.pcRow}>
+            <button className={styles.pcIconBtn} onClick={toggleMute} aria-label={t("muteToggle")}>
               <Icon name={volumeIconName(player.volume)} />
             </button>
             <input
-              className="range-thin pc-slider"
+              className={`${forms.rangeThin} ${styles.pcSlider}`}
               type="range"
               min={0}
               max={1}
@@ -399,14 +428,14 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
               onChange={(e) => player.setVolume(parseFloat(e.target.value))}
               aria-label={t("defaultVolume")}
             />
-            <span className="pc-value">{volumeToPercentage(player.volume)}%</span>
+            <span className={styles.pcValue}>{volumeToPercentage(player.volume)}%</span>
           </div>
-          <button className="pc-row pc-row-btn" onClick={() => setShowSpeed(true)} aria-label={t("playbackSpeed")}>
-            <span className="pc-icon-btn" aria-hidden="true">
+          <button className={`${styles.pcRow} ${styles.pcRowBtn}`} onClick={() => setShowSpeed(true)} aria-label={t("playbackSpeed")}>
+            <span className={styles.pcIconBtn} aria-hidden="true">
               <Icon name="gauge" />
             </span>
-            <span className="pc-label">{t("playbackSpeed")}</span>
-            <span className="pc-value">{fmtSpeedX(player.speed)}</span>
+            <span className={styles.pcLabel}>{t("playbackSpeed")}</span>
+            <span className={styles.pcValue}>{fmtSpeedX(player.speed)}</span>
           </button>
         </div>
       </div>

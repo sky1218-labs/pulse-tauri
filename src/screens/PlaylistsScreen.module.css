@@ -1,0 +1,50 @@
+/* Playlists — 2-column artwork cards (radius-16 covers). */
+.playlistGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-md);
+}
+.playlistCard { text-align: left; padding: 0; min-width: 0; }
+.cardArt {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-3);
+  background: linear-gradient(150deg, var(--elevated), var(--interactive));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  overflow: hidden;
+}
+.cardArt img { width: 100%; height: 100%; object-fit: cover; }
+.cardArt > svg { width: 34px; height: 34px; }
+.cardMenu {
+  position: absolute;
+  top: var(--sp-sm);
+  right: var(--sp-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cardMenu svg { width: 18px; height: 18px; }
+.cardName {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  margin-top: var(--sp-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cardSub {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

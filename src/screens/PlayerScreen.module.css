@@ -1,0 +1,404 @@
+/* Now Playing — ambient artwork colour over the base gradient, big art,
+   transport, and the bottom controls card. Only transform/opacity move. */
+.playerRoot {
+  position: relative;
+  background: linear-gradient(180deg, var(--elevated), var(--bg));
+}
+
+/* Ambient layer: gradient from the track's darkened artwork colour into
+   the base background. Layers cross-fade by animating OPACITY only —
+   the gradient itself is never transitioned. --np-ambient is injected
+   inline per layer (runtime value). */
+.npAmbient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--np-ambient) 0%, transparent 62%);
+  pointer-events: none;
+  animation: ambientIn var(--motion-slower) var(--ease-out);
+}
+@keyframes ambientIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* While ambient colour covers the header zone, header chrome goes light
+   (the ambient stop is contrast-checked for white text). */
+.ambientOn .npHeader > button { color: rgba(255, 255, 255, 0.88); }
+.ambientOn .npPill { background: rgba(0, 0, 0, 0.28); color: #fff; }
+.ambientOn .moonBtn { color: rgba(255, 255, 255, 0.75); }
+
+.npHeader {
+  padding: 20px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-mdsm);
+  position: relative;
+  z-index: 1;
+}
+button.hdrBtn { color: var(--text-secondary); }
+button.hdrBtn svg { width: 28px; height: 28px; }
+
+.npPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--interactive);
+  border-radius: var(--radius-full);
+  padding: var(--sp-xs) var(--sp-md);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+}
+.moonBtn {
+  min-width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-hint);
+  padding: var(--sp-sm);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.moonBtn:active { transform: scale(0.96); }
+.moonBtn svg { width: 20px; height: 20px; }
+.moonBtnActive { color: var(--text); background: var(--elevated); border: 1px solid var(--border); }
+
+.playerScreen {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.playerArtWrap {
+  flex: 1;
+  width: 100%;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.playerArt {
+  width: min(72vw, 280px);
+  aspect-ratio: 1;
+  border-radius: var(--radius-3);
+  background: var(--elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  transition: transform 0.35s var(--ease-out);
+}
+.playerArtPlaying { transform: scale(1); }
+.playerArtPaused { transform: scale(0.98); }
+.playerArt svg { width: 48px; height: 48px; }
+.playerArt img { width: 100%; height: 100%; object-fit: cover; }
+
+.playerTitle {
+  font-size: var(--fs-headline);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  text-align: center;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.playerSub {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: var(--sp-xs);
+  text-align: center;
+}
+
+.seek {
+  width: 100%;
+  margin-top: var(--sp-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+.seekInput { flex: 1; }
+.jumpBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.jumpBtn:hover { background: var(--interactive); color: var(--text); }
+.jumpBtn:active { transform: scale(0.96); }
+.jumpBtn svg { width: 20px; height: 20px; }
+.timeLabels {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--sp-xs);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-md);
+  margin-top: var(--sp-md);
+}
+.playerPlay {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--play-bg);
+  color: var(--play-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.playerPlay svg { width: 36px; height: 36px; }
+.playerPlay:hover { opacity: 0.92; }
+.playerPlay:active { transform: scale(0.94); filter: brightness(1.08); }
+button.ctrlBtn { width: 48px; height: 48px; }
+button.ctrlBtn svg { width: 26px; height: 26px; }
+.skipBtn {
+  width: 48px;
+  color: var(--text);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: none;
+  padding: var(--sp-xs) 0;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.skipBtn:active { transform: scale(0.96); }
+.skipBtn svg { width: 26px; height: 26px; }
+.skipLabel { font-size: 14px; font-weight: var(--fw-semibold); line-height: 1; }
+.skipFlip svg { transform: scaleX(-1); }
+
+/* Bottom zone — one surface card, two rows (volume / speed). */
+.playerCard {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: var(--sp-md);
+  margin-top: var(--sp-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-mdsm);
+}
+.pcRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-mdsm);
+  min-width: 0;
+}
+.pcIconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.pcIconBtn:hover { background: var(--interactive); color: var(--text); }
+.pcIconBtn:active { transform: scale(0.96); }
+.pcIconBtn svg { width: 20px; height: 20px; }
+.pcSlider { flex: 1; min-width: 0; }
+.pcValue {
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: right;
+  flex: none;
+}
+/* Speed row: one quiet tappable row — presets live in the dialog it opens. */
+.pcRowBtn {
+  width: auto;
+  margin-inline: -8px;
+  padding: 2px var(--sp-sm);
+  min-height: 40px;
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+}
+.pcRowBtn:hover { background: var(--row-hover); }
+.pcRowBtn:active { background: var(--interactive); }
+.pcRowBtn .pcIconBtn:hover { background: transparent; }
+.pcLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Wheel pickers (sleep timer custom + jump to time). Row heights are
+   component geometry: 40px standard, 30px compact. */
+.wheels { display: flex; align-items: stretch; gap: 2px; }
+.wheel { flex: 1; text-align: center; }
+.wLabel {
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-sm);
+}
+.wLabelBelow {
+  font-size: 10px;
+  color: var(--text-hint);
+  margin-top: var(--sp-xs);
+}
+.wBand { position: relative; display: flex; flex-direction: column; }
+.wRow {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-sm);
+  width: 100%;
+}
+.wRowCompact { height: 30px; }
+.wRowSel { background: var(--elevated); color: var(--text); font-size: 24px; font-weight: var(--fw-medium); }
+:global(html[data-theme="light"]) .wRowSel { background: var(--interactive); }
+.wRowNear { color: var(--text-secondary); font-size: 24px; font-weight: var(--fw-medium); }
+.wRowFar { color: var(--text-hint); font-size: 24px; font-weight: var(--fw-medium); }
+.wSep {
+  align-self: flex-start;
+  font-size: var(--fs-headline);
+  font-weight: 300;
+  color: var(--text-muted);
+  padding: 0 1px;
+  margin-top: 88px;
+}
+.wSepTall { margin-top: 117px; }
+.customPicker .wRow { font-size: 14px; font-weight: var(--fw-regular); color: var(--text-faint); }
+.customPicker .wRowSel { background: none; font-size: 18px; font-weight: var(--fw-semibold); color: var(--text); }
+.customPicker .wSep { margin-top: 34px; }
+
+/* Sleep timer dialog. */
+.sleepHead { text-align: center; margin-bottom: var(--sp-lg); }
+.moonCircle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--elevated), var(--surface));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  margin-bottom: var(--sp-mdsm);
+}
+:global(html[data-theme="light"]) .moonCircle { background: var(--interactive); color: var(--accent); }
+.moonCircle svg { width: 24px; height: 24px; }
+.sleepHead .sleepTitle { font-size: 18px; margin: 0 0 var(--sp-xs); display: block; }
+.sleepSub { color: var(--text-hint); font-size: var(--fs-caption); }
+.presetGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-sm); }
+.presetCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--sp-xs);
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.presetCard:active { transform: scale(0.96); }
+.pVal { font-size: 20px; font-weight: var(--fw-bold); line-height: 1.1; display: inline-flex; }
+.pVal svg { width: 26px; height: 26px; }
+.pUnit { font-size: 11px; color: var(--text-hint); text-align: center; }
+.presetCardSelected { background: var(--cta-bg); color: var(--cta-fg); border-color: var(--cta-bg); border-width: 2px; }
+.presetCardSelected .pUnit { color: var(--cta-fg); opacity: 0.65; }
+.customCard {
+  width: 100%;
+  margin-top: var(--sp-mdsm);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-md) var(--sp-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-sm);
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.customCard:active { transform: scale(0.96); }
+.customCardSelected { border: 2px solid var(--play-bg); background: var(--row-hover); }
+.tuneIc { display: inline-flex; color: var(--text-secondary); }
+.customPicker {
+  margin-top: var(--sp-mdsm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-sm);
+}
+.stretchBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 var(--sp-sm);
+  font-size: var(--fs-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Jump-to-time + speed dialogs. */
+.jumpTitle { font-size: var(--fs-title); font-weight: var(--fw-semibold); margin-bottom: var(--sp-xs); }
+.jumpSub { margin-bottom: 20px; font-size: var(--fs-label); color: var(--text-secondary); }
+.jumpTime {
+  text-align: center;
+  font-size: 24px;
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  margin-top: 20px;
+  color: var(--text);
+}
+.jumpTimeInvalid { color: var(--error); }
+.jumpError { color: var(--error); text-align: center; margin-top: var(--sp-sm); font-size: 14px; }
+.speedValue {
+  text-align: center;
+  font-size: 32px;
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--sp-md);
+}
+.speedChips { display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
+button.speedChip { font-size: var(--fs-label); }
+.speedSliderWrap { margin-top: var(--sp-md); }

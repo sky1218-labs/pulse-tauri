@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Icon, Dialog, ConfirmDialog } from "../components/components";
+import { Icon } from "../ui/primitives/Icon";
+import { Dialog, ConfirmDialog } from "../ui/primitives/Dialog";
+import dialogStyles from "../ui/primitives/Dialog.module.css";
+import btn from "../ui/primitives/Button.module.css";
+import forms from "../ui/primitives/forms.module.css";
+import layout from "../styles/layout.module.css";
 import { tap } from "../utils/haptics";
 import { formatTime } from "../utils/time";
 import { totalDurationMs, type Playlist } from "../utils/playlist";
 import { useLibrary } from "../store";
+import styles from "./PlaylistsScreen.module.css";
 
 export function PlaylistsScreen({ goBack, openPlaylist }: { goBack: () => void; openPlaylist: (id: string) => void }) {
   const { data, t, tracksById, createPlaylist, renamePlaylist, deletePlaylist } = useLibrary();
@@ -14,60 +20,70 @@ export function PlaylistsScreen({ goBack, openPlaylist }: { goBack: () => void; 
   const [menu, setMenu] = useState<Playlist | null>(null);
 
   return (
-    <div className="screen pad16">
-      <div className="screen-header">
-        <button className="icon-btn" onClick={goBack} aria-label="back"><Icon name="back" /></button>
-        <div style={{ flex: 1 }}>
+    <div className={`${layout.screen} ${layout.pad16}`}>
+      <div className={layout.screenHeader}>
+        <button className={btn.iconBtn} onClick={goBack} aria-label="back"><Icon name="back" /></button>
+        <div className={layout.headerMeta}>
           <h1>{t("playlist")}</h1>
-          <div className="subtitle">{t("playlistDesc")}</div>
+          <div className={layout.subtitle}>{t("playlistDesc")}</div>
         </div>
-        <button className="icon-btn filled" onClick={() => { setName(""); setCreating(true); }} aria-label={t("createPlaylist")}>
+        <button className={`${btn.iconBtn} ${btn.iconBtnFilled}`} onClick={() => { setName(""); setCreating(true); }} aria-label={t("createPlaylist")}>
           <Icon name="plus" />
         </button>
       </div>
 
       {data.playlists.length === 0 ? (
-        <div className="empty-state">
+        <div className={layout.emptyState}>
           <Icon name="queue" />
-          <div className="es-title">{t("noPlaylists")}</div>
-          <div className="es-hint">{t("noPlaylistsHint")}</div>
-          <button className="btn btn-primary" onClick={() => { setName(""); setCreating(true); }}>{t("createPlaylist")}</button>
+          <div className={layout.esTitle}>{t("noPlaylists")}</div>
+          <div className={layout.esHint}>{t("noPlaylistsHint")}</div>
+          <button className={`${btn.btn} ${btn.btnPrimary}`} onClick={() => { setName(""); setCreating(true); }}>{t("createPlaylist")}</button>
         </div>
       ) : (
-        <div className="row-list">
-        {data.playlists.map((p) => (
-          <div key={p.id} className="track-row" role="button" tabIndex={0} onClick={() => openPlaylist(p.id)}>
-            <div className="art"><Icon name="queue" /></div>
-            <div className="meta">
-              <div className="title">{p.name}</div>
-              <div className="sub">
-                {t("songsCount", { n: p.trackIds.length })}
-              </div>
-            </div>
-            <div className="trailing">
-              <button className="icon-btn" style={{ width: 32, height: 32, color: "var(--text-muted)" }} onClick={(e) => { e.stopPropagation(); setMenu(p); }} aria-label="menu">
-                <Icon name="moreHoriz" />
+        <div className={styles.playlistGrid}>
+          {data.playlists.map((p) => {
+            const cover = p.trackIds
+              .map((id) => tracksById.get(id))
+              .find((tr) => tr?.artworkPath)?.artworkPath;
+            const duration = totalDurationMs(p, tracksById);
+            return (
+              <button key={p.id} className={styles.playlistCard} onClick={() => openPlaylist(p.id)}>
+                <span className={styles.cardArt}>
+                  {cover ? <img src={cover} alt="" /> : <Icon name="queue" />}
+                  <span
+                    className={styles.cardMenu}
+                    role="button"
+                    aria-label="menu"
+                    onClick={(e) => { e.stopPropagation(); setMenu(p); }}
+                  >
+                    <Icon name="moreHoriz" />
+                  </span>
+                </span>
+                <div className={styles.cardName}>{p.name}</div>
+                <div className={styles.cardSub}>
+                  {t("songsCount", { n: p.trackIds.length })}
+                  {duration > 0 ? ` · ${formatTime(duration)}` : ""}
+                </div>
               </button>
-            </div>
-          </div>
-        ))}
+            );
+          })}
         </div>
       )}
 
       {creating || renaming ? (
-        <Dialog title={renaming ? t("renamePlaylist") : t("createPlaylist")} onClose={() => { setCreating(false); setRenaming(null); }} centered className="r28">
+        <Dialog title={renaming ? t("renamePlaylist") : t("createPlaylist")} onClose={() => { setCreating(false); setRenaming(null); }} centered radius="r28">
           <input
-            className="text-field"
+            className={forms.textField}
             autoFocus
             value={renaming && name === "" ? renaming.name : name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("playlistNameHint")}
             aria-label={t("playlistName")}
           />
-          <div className="dialog-actions">
-            <button className="btn btn-ghost" onClick={() => { setCreating(false); setRenaming(null); }}>{t("cancel")}</button>
+          <div className={dialogStyles.dialogActions}>
+            <button className={`${btn.btn} ${btn.btnGhost}`} onClick={() => { setCreating(false); setRenaming(null); }}>{t("cancel")}</button>
             <button
-              className="btn btn-primary"
+              className={`${btn.btn} ${btn.btnPrimary}`}
               disabled={(renaming && name === "" ? renaming.name : name).trim() === ""}
               onClick={() => {
                 tap();
@@ -84,10 +100,10 @@ export function PlaylistsScreen({ goBack, openPlaylist }: { goBack: () => void; 
       {menu ? (
         <Dialog title={menu.name} onClose={() => setMenu(null)}>
           <div>
-            <button className="menu-item" onClick={() => { setRenaming(menu); setName(menu.name); setMenu(null); }}>
+            <button className={btn.menuItem} onClick={() => { setRenaming(menu); setName(menu.name); setMenu(null); }}>
               <Icon name="edit" /> {t("renamePlaylist")}
             </button>
-            <button className="menu-item danger" onClick={() => { setConfirmDelete(menu); setMenu(null); }}>
+            <button className={`${btn.menuItem} ${btn.menuItemDanger}`} onClick={() => { setConfirmDelete(menu); setMenu(null); }}>
               <Icon name="trash" /> {t("deletePlaylist")}
             </button>
           </div>

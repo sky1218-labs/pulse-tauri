@@ -1,10 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
-import type { Track } from "../utils/playlist";
-import { displayTitle } from "../utils/playlist";
-import { formatTime } from "../utils/time";
-import { usePlayer, useLibrary } from "../store";
-import { tap } from "../utils/haptics";
-import { backNav } from "../utils/backNav";
+import styles from "./Icon.module.css";
 
 /* Inline SVG icons (Material-style outlines, drawn for Pulse). */
 const P: Record<string, string> = {
@@ -58,7 +52,7 @@ export function Icon({ name, className }: { name: keyof typeof P; className?: st
 
 export function Equalizer() {
   return (
-    <span className="eq" aria-hidden="true">
+    <span className={styles.eq} aria-hidden="true">
       <span /><span /><span />
     </span>
   );
@@ -68,107 +62,9 @@ export function Equalizer() {
  *  counter-scales them (iOS-style) instead of swapping abruptly. */
 export function PlayPauseIcon({ playing }: { playing: boolean }) {
   return (
-    <span className={`pp${playing ? " is-playing" : ""}`} aria-hidden="true">
+    <span className={`${styles.pp}${playing ? ` ${styles.ppPlaying}` : ""}`} aria-hidden="true">
       <Icon name="play" />
       <Icon name="pause" />
     </span>
-  );
-}
-
-export function TrackRow({
-  track, queue, onMenu, selected, onSelect, inert,
-}: {
-  track: Track;
-  queue: Track[];
-  onMenu?: (track: Track) => void;
-  selected?: boolean;
-  onSelect?: (track: Track) => void;
-  /** Render-only row: no playback on tap (used by playlist edit mode). */
-  inert?: boolean;
-}) {
-  const player = usePlayer();
-  const isCurrent = player.current?.id === track.id;
-  const handleClick = () => {
-    if (inert) return;
-    if (onSelect) onSelect(track);
-    else void player.playTrack(track, queue, { fromUserTap: true });
-  };
-  return (
-    <div className={`track-row${selected ? " selected" : ""}`} role="button" tabIndex={0} onClick={handleClick}>
-      <div className="art">
-        {track.artworkPath ? <img src={track.artworkPath} alt="" /> : <Icon name="music" />}
-      </div>
-      <div className="meta">
-        <div className={`title${isCurrent ? " now-playing" : ""}`}>{displayTitle(track)}</div>
-        <div className="sub">{track.artist || ""}</div>
-      </div>
-      <div className="trailing">
-        {isCurrent && player.playing ? <Equalizer /> : null}
-        <span className="dur">{track.durationMs > 0 ? formatTime(track.durationMs) : "--:--"}</span>
-        {onSelect ? (
-          <span className={`checkbox${selected ? " checked" : ""}`}>{selected ? <Icon name="check" /> : null}</span>
-        ) : onMenu ? (
-          <button
-            className="icon-btn"
-            style={{ width: 40, height: 40, color: "var(--text-muted)" }}
-            onClick={(e) => { e.stopPropagation(); onMenu(track); }}
-            aria-label="menu"
-          >
-            <Icon name="moreHoriz" />
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-export function Dialog({ title, children, onClose, centered, bare, className }: {
-  title: string; children: React.ReactNode; onClose: () => void;
-  centered?: boolean; bare?: boolean; className?: string;
-}) {
-  // Backdrop-tap dismissal plays the exit animation before unmounting;
-  // button-driven closes are parent-controlled and unmount immediately.
-  const [closing, setClosing] = useState(false);
-  const requestClose = () => {
-    if (closing) return;
-    setClosing(true);
-    window.setTimeout(onClose, 180);
-  };
-  // Android back closes the topmost dialog before it navigates/exits.
-  const requestCloseRef = useRef(requestClose);
-  requestCloseRef.current = requestClose;
-  useEffect(() => backNav.register(() => {
-    requestCloseRef.current();
-    return true;
-  }), []);
-  return (
-    <div className={`dialog-backdrop${centered ? " center" : ""}${closing ? " closing" : ""}`} onClick={requestClose}>
-      <div className={`dialog${centered ? " centered" : ""}${bare ? " bare" : ""}${className ? ` ${className}` : ""}`} onClick={(e) => e.stopPropagation()}>
-        <h2>{title}</h2>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export function ConfirmDialog({
-  title, message, confirmLabel, onConfirm, onCancel,
-}: {
-  title: string; message: string; confirmLabel: string;
-  onConfirm: () => void; onCancel: () => void;
-}) {
-  const { t } = useLibrary();
-  return (
-    <Dialog title={title} onClose={onCancel} centered bare className="r12 on-elevated">
-      <div className="confirm-head">
-        <Icon name="warning" />
-        <h2>{title}</h2>
-      </div>
-      <p>{message}</p>
-      <div className="dialog-actions">
-        <button className="btn-text neutral" onClick={onCancel}>{t("cancel")}</button>
-        <button className="btn-text danger" onClick={() => { tap(); onConfirm(); }}>{confirmLabel}</button>
-      </div>
-    </Dialog>
   );
 }

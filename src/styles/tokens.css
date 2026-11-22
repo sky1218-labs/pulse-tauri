@@ -1,0 +1,74 @@
+/* Pulse design tokens — the single source of truth for every visual value.
+   Components and screens consume ONLY these variables (via CSS Modules);
+   raw hex / arbitrary px values live here and nowhere else.
+   Palette DNA ported from the original Flutter app (docs/UI.md):
+   charcoal layers, Pulse blue accent #0070F3. Never Spotify green. */
+:root {
+  /* Safe-area insets (Android edge-to-edge / notches). Vars so tests can
+     override them, e.g. --inset-top: 24px to simulate a status bar. */
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Spacing — 4pt grid. --sp-* are the legacy aliases of --space-*. */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --sp-xs: var(--space-1); --sp-sm: var(--space-2); --sp-mdsm: var(--space-3);
+  --sp-md: var(--space-4); --sp-lg: var(--space-5); --sp-xl: var(--space-6); --sp-xxl: var(--space-7);
+
+  /* Radii — 8 / 12 / 16 / 24 / pill. --radius-art & friends are legacy aliases. */
+  --radius-1: 8px; --radius-2: 12px; --radius-3: 16px; --radius-4: 24px; --radius-pill: 999px;
+  --radius-art: var(--radius-2); --radius-sm: var(--radius-1); --radius-md: var(--radius-1);
+  --radius-lg: var(--radius-2); --radius-xl: var(--radius-3); --radius-card: var(--radius-3);
+  --radius-full: 9999px;
+  /* Named one-offs (mini player pill, centered dialogs, bottom sheets). */
+  --radius-mini: 20px; --radius-dialog: 20px; --radius-sheet: 24px;
+
+  /* Type scale — Inter. Only weights 400 / 500 / 600 / 700 are used. */
+  --fs-display: 30px; --fs-headline: 22px; --fs-title: 16px; --fs-body: 15px;
+  --fs-label: 13px; --fs-caption: 12px;
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+  --lh-tight: 1.2; --lh-body: 1.45;
+
+  /* Motion — animate transform / opacity only. */
+  --motion-fast: 150ms; --motion-medium: 280ms; --motion-slow: 500ms; --motion-slower: 550ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-inout: cubic-bezier(0.42, 0, 0.58, 1);
+
+  /* Accent & status (theme-independent). */
+  --accent: #0070f3; --accent-hover: #3291ff; --accent-dark: #0761d1;
+  --error: #ee0000; --warning: #f5a623;
+  --progress-track: #333333; --progress-fill: #ffffff;
+
+  /* Now Playing runtime colour — set inline per track from its artwork
+     (src/utils/artworkColor.ts); transparent = no ambient tint. */
+  --np-ambient: transparent;
+
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+html[data-theme="dark"] {
+  --bg: #121212; --surface: #181818; --interactive: #1f1f1f; --elevated: #282828;
+  --border: #292929; --text: #ffffff; --text-secondary: #b3b3b3; --text-muted: #a7a7a7;
+  --text-hint: #6a6a6a; --text-faint: #404040; --divider: rgba(255,255,255,0.08); --row-hover: rgba(255,255,255,0.08);
+  --accent-light: #3291ff;
+  --slider-fill: #ffffff; --slider-track: #333333;
+  --play-bg: #ffffff; --play-fg: #000000;
+  --cta-bg: #ffffff; --cta-fg: #000000;
+  --switch-on: #404040; --switch-off: #282828; --switch-thumb-on: #ffffff; --switch-thumb-off: #b3b3b3;
+  /* The one glass surface (mini player): translucent fill + specular top edge. */
+  --glass-bg: rgba(24, 24, 24, 0.72); --glass-border: rgba(255, 255, 255, 0.08); --glass-fallback: #1e1e1e;
+  color-scheme: dark;
+}
+html[data-theme="light"] {
+  --bg: #ffffff; --surface: #f5f5f5; --interactive: #eeeeee; --elevated: #ffffff;
+  --border: #eaeaea; --text: #000000; --text-secondary: #6a6a6a; --text-muted: #a7a7a7;
+  --text-hint: #a7a7a7; --text-faint: #a7a7a7; --divider: rgba(0,0,0,0.08); --row-hover: rgba(0,0,0,0.05);
+  --accent-light: #0070f3;
+  --progress-track: #eaeaea; --progress-fill: #0070f3;
+  --slider-fill: #0070f3; --slider-track: #d6d6d6;
+  --play-bg: #0070f3; --play-fg: #ffffff;
+  --cta-bg: #0070f3; --cta-fg: #ffffff;
+  --switch-on: #0070f3; --switch-off: #d6d6d6; --switch-thumb-on: #ffffff; --switch-thumb-off: #a7a7a7;
+  --glass-bg: rgba(255, 255, 255, 0.78); --glass-border: rgba(0, 0, 0, 0.06); --glass-fallback: #f2f2f2;
+  color-scheme: light;
+}

@@ -1,0 +1,109 @@
+/* Buttons & button-like controls — one shared style per job.
+   Press feedback: immediate scale + brightness on :active, iOS timing. */
+
+.btn {
+  border-radius: var(--radius-full);
+  height: 40px;
+  padding: 0 var(--sp-lg);
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-sm);
+  white-space: nowrap;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn svg { width: 20px; height: 20px; flex: none; }
+.btnPrimary { background: var(--accent); color: #fff; }
+.btnPrimary:hover { background: var(--accent-hover); }
+.btnPrimary:active { background: var(--accent-dark); }
+.btnPrimary:disabled { background: var(--elevated); color: var(--text-hint); opacity: 1; }
+.btnSecondary { background: var(--interactive); color: var(--text); }
+.btnGhost { color: var(--text-secondary); }
+.btnDanger { background: var(--error); color: #fff; }
+.btnSmall { height: 32px; padding: 0 var(--sp-md); font-size: var(--fs-label); }
+
+.btnText {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  padding: var(--sp-sm);
+  cursor: pointer;
+  font: inherit;
+}
+.btnTextNeutral { color: var(--text-secondary); }
+.btnTextDanger { color: var(--error); }
+
+.iconBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.iconBtn:hover { background: var(--interactive); }
+.iconBtn:active { transform: scale(0.96); }
+.iconBtn svg { width: 22px; height: 22px; }
+.iconBtnFilled { background: var(--play-bg); color: var(--play-fg); }
+.iconBtnFilled:hover { background: var(--play-bg); opacity: 0.9; }
+
+.playBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--play-bg);
+  color: var(--play-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.playBtn:hover { opacity: 0.9; }
+.playBtn:active { transform: scale(0.94); filter: brightness(1.08); }
+.playBtn svg { width: 22px; height: 22px; }
+
+.chip {
+  background: var(--interactive);
+  border-radius: var(--radius-full);
+  padding: var(--sp-sm) var(--sp-md);
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.chip:active { transform: scale(0.96); }
+.chipSelected { background: var(--accent); color: #fff; font-weight: var(--fw-semibold); }
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  padding: var(--sp-mdsm) var(--sp-xs);
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  text-align: left;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+.menuItem:active { transform: scale(0.96); }
+.menuItem svg { width: 24px; height: 24px; color: var(--text-muted); flex: none; }
+.menuItemDanger { color: var(--error); }
+.menuItemDanger svg { color: var(--error); }

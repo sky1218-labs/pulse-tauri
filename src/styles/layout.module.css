@@ -1,0 +1,102 @@
+/* Shared screen scaffolding — imported by every screen so the hashed class
+   names stay identical app-wide. Screen-specific styling lives in each
+   screen's own module. */
+
+/* Always mounted, always flex:1 — even while a lazy screen suspends — so
+   the shell rows below it (resume card, mini player) never move. */
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--sp-lg) calc(var(--sp-md) + var(--inset-bottom));
+  animation: screenIn var(--motion-medium) var(--ease-out);
+}
+@keyframes screenIn {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.pad16 { padding-left: var(--sp-md); padding-right: var(--sp-md); }
+
+.screenHeader {
+  padding: 20px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-mdsm);
+}
+.screenHeader h1 {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+.subtitle {
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  margin-top: var(--sp-xs);
+}
+/* Title block inside .screenHeader (grows, truncates). */
+.headerMeta { flex: 1; min-width: 0; }
+
+.sectionTitle {
+  font-size: var(--fs-headline);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+  margin: var(--sp-lg) 0 var(--sp-mdsm);
+}
+
+/* Empty state — fills the remaining screen height, content centered in it. */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-xl);
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+  color: var(--text-secondary);
+}
+.emptyState > svg {
+  width: 48px;
+  height: 48px;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-lg);
+}
+.esTitle {
+  color: var(--text);
+  font-size: var(--fs-headline);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--sp-sm);
+}
+.esHint {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: var(--sp-lg);
+}
+
+.toast {
+  position: fixed;
+  bottom: calc(96px + var(--inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px var(--sp-md);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-label);
+  z-index: 60;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  max-width: 88vw;
+  text-align: center;
+  animation: toastIn 0.25s var(--ease-sheet);
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

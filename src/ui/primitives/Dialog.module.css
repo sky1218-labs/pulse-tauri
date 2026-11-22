@@ -1,0 +1,80 @@
+/* Dialogs & bottom sheets. Exit animation plays on backdrop-tap dismissal
+   only; button closes unmount immediately (parent-controlled). */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+  padding-bottom: var(--inset-bottom);
+  animation: backdropIn 0.25s ease-out;
+}
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@media (min-width: 480px) { .backdrop { align-items: center; } }
+.backdropCenter { align-items: center; padding: var(--sp-md); }
+.backdropClosing { opacity: 0; transition: opacity 0.18s ease-in; }
+
+.dialog {
+  background: var(--elevated);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  padding: var(--sp-lg);
+  width: 100%;
+  max-width: min(480px, 100vw);
+  max-height: 86dvh;
+  overflow-y: auto;
+  animation: sheetIn 0.42s var(--ease-sheet);
+}
+@keyframes sheetIn {
+  from { opacity: 0.5; transform: translateY(48px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (min-width: 480px) { .dialog { border-radius: var(--radius-dialog); margin: var(--sp-md); } }
+.dialog h2 { margin: 0 0 var(--sp-md); font-size: var(--fs-title); font-weight: var(--fw-semibold); }
+.dialog p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+}
+.backdropClosing .dialog { transform: translateY(32px); opacity: 0.5; transition: transform 0.18s ease-in, opacity 0.18s ease-in; }
+
+.centered {
+  border-radius: var(--radius-dialog);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  max-width: min(400px, calc(100vw - 32px));
+  margin: 0;
+  animation: popIn 0.32s var(--ease-sheet);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.backdropClosing .centered { transform: scale(0.96) translateY(4px); }
+.r12 { border-radius: var(--radius-lg); }
+.r28 { border-radius: var(--radius-4); }
+.onElevated { background: var(--elevated); }
+.pad32 { padding: var(--sp-xl); }
+.bare > h2 { display: none; }
+
+.confirmHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+.confirmHead svg { width: 20px; height: 20px; color: var(--error); flex: none; }
+.confirmHead h2 { margin: 0; font-size: var(--fs-headline); font-weight: var(--fw-bold); color: var(--error); }
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-lg);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.dialogActionsStretch { justify-content: stretch; flex-wrap: nowrap; }

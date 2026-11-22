@@ -15,6 +15,7 @@ Everything is pinned exactly — no floating ranges. Upgrade policy: one compone
 | @tauri-apps/plugin-dialog | 2.8.4 | Stable | `package.json`, `src-tauri/Cargo.toml` |
 | @tauri-apps/plugin-fs | 2.7.1 | Stable | `package.json`, `src-tauri/Cargo.toml` |
 | react / react-dom | 19.3.1 | Stable | `package.json` |
+| fast-average-color | 9.6.0 | Stable | `package.json` |
 | @types/react / @types/react-dom | 19.3.0 | Stable | `package.json` |
 | vite | 8.3.8 | Stable | `package.json` |
 | @vitejs/plugin-react | 6.3.0 | Stable | `package.json` |

@@ -1,0 +1,47 @@
+/* Playlist detail — reorder controls live only in edit mode. */
+.plTitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button.editToggle {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--sp-md);
+  border-radius: var(--radius-full);
+  background: var(--interactive);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out, color var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
+}
+button.editToggle:active { transform: scale(0.96); }
+button.editToggleOn { background: var(--accent); color: #fff; }
+
+.editList { margin-top: var(--sp-sm); }
+.editRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline: calc(-1 * var(--sp-mdsm));
+  padding-inline: var(--sp-mdsm);
+  border-radius: var(--radius-card);
+}
+.editRow > :first-child { flex: 1; min-width: 0; }
+.editRow > :first-child:hover { background: transparent; }
+.editRow:active { background: var(--row-hover); }
+button.moveBtn { width: 40px; height: 40px; }
+button.moveBtn:disabled { opacity: 0.25; }
+
+/* Rows bleed like the library list (see HomeScreen). */
+.rowBleed { margin-inline: calc(-1 * var(--sp-mdsm)); }
+
+.selectedCount {
+  margin-bottom: var(--sp-mdsm);
+  color: var(--text-secondary);
+  font-size: var(--fs-label);
+}
+.addList { max-height: 46dvh; overflow-y: auto; }

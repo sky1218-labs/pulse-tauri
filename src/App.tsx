@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AppProviders, useLibrary, usePlayer } from "./store";
 import { HomeScreen } from "./screens/HomeScreen";
-import { MiniPlayer } from "./components/MiniPlayer";
+import { MiniPlayer } from "./ui/composites/MiniPlayer";
+import btn from "./ui/primitives/Button.module.css";
 import { formatTime } from "./utils/time";
 import { backNav, installBackBridge } from "./utils/backNav";
+import styles from "./App.module.css";
 
 /* Non-initial screens are code-split; Home stays eager (initial bundle). */
 const PlaylistsScreen = lazy(() => import("./screens/PlaylistsScreen").then((m) => ({ default: m.PlaylistsScreen })));
@@ -31,21 +33,21 @@ function ResumePrompt({ goPlayer }: { goPlayer: () => void }) {
   }, [prompt]);
   if (!prompt) return null;
   return (
-    <div className="resume-card">
-      <div className="rc-title">{t("resumePlaybackPromptTitle")}</div>
+    <div className={styles.resumeCard}>
+      <div className={styles.rcTitle}>{t("resumePlaybackPromptTitle")}</div>
       <p>
         {t("resumePlaybackPromptMessage", {
           trackTitle: prompt.track.title,
           position: formatTime(prompt.positionMs),
         })}
       </p>
-      <div className="dialog-actions">
+      <div className={styles.resumeActions}>
         <button
-          className="btn btn-ghost btn-small"
+          className={`${btn.btn} ${btn.btnGhost} ${btn.btnSmall}`}
           onClick={() => player.answerResume(false)}
         >{t("resumePlaybackPromptStartOver")}</button>
         <button
-          className="btn btn-primary btn-small"
+          className={`${btn.btn} ${btn.btnPrimary} ${btn.btnSmall}`}
           onClick={() => {
             player.answerResume(true);
             if (data.settings.navigateToPlayerOnResume) goPlayer();
@@ -103,10 +105,10 @@ function Shell() {
   }, []);
 
   return (
-    <div className="app-shell">
+    <div className={styles.appShell}>
       {/* The region keeps its flex slot even while a lazy screen suspends,
           so the shell below it (mini player) can never jump. */}
-      <div className="screen-region">
+      <div className={styles.screenRegion}>
         <Suspense fallback={null}>
           {screen === "home" && (
             <HomeScreen goScanner={() => go("scanner")} goPlaylists={() => setScreen("playlists")} goSettings={() => go("settings")} />

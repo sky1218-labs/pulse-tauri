@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState } from "react";
-import { Icon, Dialog } from "../components/components";
+import { Icon } from "../ui/primitives/Icon";
+import { Dialog } from "../ui/primitives/Dialog";
+import dialogStyles from "../ui/primitives/Dialog.module.css";
+import btn from "../ui/primitives/Button.module.css";
+import forms from "../ui/primitives/forms.module.css";
+import layout from "../styles/layout.module.css";
+import styles from "./ScannerScreen.module.css";
 import type { Track } from "../utils/playlist";
 import { isAudioPath, basenameWithoutExtension } from "../utils/audioPath";
 import { useLibrary } from "../store";
@@ -198,41 +204,41 @@ export function ScannerScreen({ goBack }: { goBack: () => void }) {
     });
 
   return (
-    <div className="screen pad16">
-      <div className="screen-header">
-        <button className="icon-btn" onClick={goBack} aria-label="back"><Icon name="back" /></button>
-        <div style={{ flex: 1 }}>
+    <div className={`${layout.screen} ${layout.pad16}`}>
+      <div className={layout.screenHeader}>
+        <button className={btn.iconBtn} onClick={goBack} aria-label="back"><Icon name="back" /></button>
+        <div className={layout.headerMeta}>
           <h1>{t("scanMusic")}</h1>
-          <div className="subtitle">{t("scanMusicDesc")}</div>
+          <div className={layout.subtitle}>{t("scanMusicDesc")}</div>
         </div>
       </div>
 
       {phase === "idle" || phase === "failed" ? (
         <>
-          <div className="scan-hero">
+          <div className={styles.scanHero}>
             <Icon name="folder" />
             <h2>{t("addMusic")}</h2>
             <p>{t("addMusicDesc")}</p>
-            {phase === "failed" ? <p style={{ color: "var(--error)" }}>{t("scanFailed")}</p> : null}
+            {phase === "failed" ? <p className={styles.errorText}>{t("scanFailed")}</p> : null}
             {phase === "failed" && errorDetail ? (
-              <p style={{ color: "var(--text-hint)", fontSize: 12, overflowWrap: "anywhere" }}>{errorDetail}</p>
+              <p className={styles.errorDetail}>{errorDetail}</p>
             ) : null}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
-              <button className="btn btn-primary" onClick={startAutoScan}>
+            <div className={styles.heroButtons}>
+              <button className={`${btn.btn} ${btn.btnPrimary}`} onClick={startAutoScan}>
                 <Icon name="search" /> {t("autoScan")}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
+              <button className={`${btn.btn} ${btn.btnSecondary}`} onClick={() => setShowImport(true)}>
                 <Icon name="plus" /> {t("manualImport")}
               </button>
             </div>
           </div>
           {data.settings.monitoredFolders.length > 0 ? (
             <>
-              <div className="section-title">{t("scanFolders")}</div>
+              <div className={layout.sectionTitle}>{t("scanFolders")}</div>
               {data.settings.monitoredFolders.map((f) => (
-                <div key={f} className="track-row">
-                  <div className="art"><Icon name="folder" /></div>
-                  <div className="meta"><div className="title" style={{ fontSize: 13 }}>{f}</div></div>
+                <div key={f} className={styles.folderTrackRow}>
+                  <div className={styles.ftArt}><Icon name="folder" /></div>
+                  <div className={styles.ftMeta}><div className={styles.ftTitle}>{f}</div></div>
                 </div>
               ))}
             </>
@@ -241,80 +247,80 @@ export function ScannerScreen({ goBack }: { goBack: () => void }) {
       ) : null}
 
       {phase === "scanning" ? (
-        <div style={{ paddingTop: 24 }}>
-          <div className="scan-card">
-            <div className="sc-head"><span className="spinner" /> {t("scanning")}</div>
-            <div className="sc-line">{t("filesFound", { n: 0 })}</div>
+        <div className={styles.scanningWrap}>
+          <div className={styles.scanCard}>
+            <div className={styles.scHead}><span className={forms.spinner} /> {t("scanning")}</div>
+            <div className={styles.scLine}>{t("filesFound", { n: 0 })}</div>
           </div>
         </div>
       ) : null}
 
       {phase === "done" ? (
         <>
-          <div className="scan-card">
-            <div className="sc-head">
-              <span className="check-circle"><Icon name="checkCircle" /></span>
+          <div className={styles.scanCard}>
+            <div className={styles.scHead}>
+              <span className={styles.checkCircle}><Icon name="checkCircle" /></span>
               {t("scanComplete")}
             </div>
-            <div className="sc-line">{t("filesFound", { n: found.length })}</div>
+            <div className={styles.scLine}>{t("filesFound", { n: found.length })}</div>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={startAutoScan}>
+          <div className={styles.doneActions}>
+            <button className={`${btn.btn} ${btn.btnSecondary} ${styles.flexBtn}`} onClick={startAutoScan}>
               <Icon name="refresh" /> {t("refreshLibrary")}
             </button>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowImport(true)}>
+            <button className={`${btn.btn} ${btn.btnSecondary} ${styles.flexBtn}`} onClick={() => setShowImport(true)}>
               <Icon name="plus" /> {t("addMore")}
             </button>
           </div>
 
-          <div className="sel-head">
-            <span className="count">{selectedFolders.size} / {folders.length}</span>
-            <span style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-ghost btn-small" onClick={() => setSelectedFolders(new Set(folders.map((f) => f.key)))}>{t("selectAll")}</button>
-              <button className="btn btn-ghost btn-small" onClick={() => setSelectedFolders(new Set())}>{t("selectNone")}</button>
+          <div className={styles.selHead}>
+            <span className={styles.selCount}>{selectedFolders.size} / {folders.length}</span>
+            <span className={styles.selActions}>
+              <button className={`${btn.btn} ${btn.btnGhost} ${btn.btnSmall}`} onClick={() => setSelectedFolders(new Set(folders.map((f) => f.key)))}>{t("selectAll")}</button>
+              <button className={`${btn.btn} ${btn.btnGhost} ${btn.btnSmall}`} onClick={() => setSelectedFolders(new Set())}>{t("selectNone")}</button>
             </span>
           </div>
 
           {folders.length === 0 ? (
-            <p style={{ color: "var(--text-secondary)" }}>{t("noMusicFolders")}</p>
+            <p className={styles.noFolders}>{t("noMusicFolders")}</p>
           ) : (
             folders.map((f) => (
-              <div key={f.key} className={`folder-row${selectedFolders.has(f.key) ? " sel" : ""}`} role="button" tabIndex={0} onClick={() => toggleFolder(f.key)}>
-                <span className={`checkbox square${selectedFolders.has(f.key) ? " checked" : ""}`}>
+              <div key={f.key} className={`${styles.folderRow}${selectedFolders.has(f.key) ? ` ${styles.folderRowSel}` : ""}`} role="button" tabIndex={0} onClick={() => toggleFolder(f.key)}>
+                <span className={`${forms.checkbox} ${forms.checkboxSquare}${selectedFolders.has(f.key) ? ` ${forms.checkboxChecked}` : ""}`}>
                   {selectedFolders.has(f.key) ? <Icon name="check" /> : null}
                 </span>
-                <span className="f-ic"><Icon name="folder" /></span>
-                <span className="meta">
-                  <span className="f-name" style={{ display: "block" }}>{f.name}</span>
-                  {f.path ? <span className="f-path" style={{ display: "block" }}>{f.path}</span> : null}
+                <span className={styles.fIc}><Icon name="folder" /></span>
+                <span className={styles.fMeta}>
+                  <span className={styles.fName}>{f.name}</span>
+                  {f.path ? <span className={styles.fPath}>{f.path}</span> : null}
                 </span>
-                <span className="count-badge">{f.tracks.length}</span>
+                <span className={styles.countBadge}>{f.tracks.length}</span>
               </div>
             ))
           )}
 
           {/* lets the last folder row scroll fully clear of the sticky bar */}
-          <div style={{ height: 84, flex: "none" }} />
+          <div className={styles.summarySpacer} />
 
-          <div className="summary-bar">
-            <div className="meta">
-              <div className="sb-title">{t("foldersCount", { n: selectedFolders.size })}</div>
-              <div className="sb-sub">{t("tracksCount", { n: selectedTrackCount })}</div>
+          <div className={styles.summaryBar}>
+            <div className={styles.sbMeta}>
+              <div className={styles.sbTitle}>{t("foldersCount", { n: selectedFolders.size })}</div>
+              <div className={styles.sbSub}>{t("tracksCount", { n: selectedTrackCount })}</div>
             </div>
-            <button className="btn btn-primary" disabled={selectedFolders.size === 0} onClick={doSave}>{t("save")}</button>
+            <button className={`${btn.btn} ${btn.btnPrimary} ${styles.saveBtn}`} disabled={selectedFolders.size === 0} onClick={doSave}>{t("save")}</button>
           </div>
         </>
       ) : null}
 
       {showImport ? (
-        <Dialog title={t("importMusic")} onClose={() => setShowImport(false)} centered className="r28">
+        <Dialog title={t("importMusic")} onClose={() => setShowImport(false)} centered radius="r28">
           <p>{t("importMusicDesc")}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-            <button className="btn btn-secondary" onClick={chooseFiles}>{t("selectFiles")}</button>
-            <button className="btn btn-secondary" onClick={chooseFolder}>{t("selectFolder")}</button>
+          <div className={styles.importButtons}>
+            <button className={`${btn.btn} ${btn.btnSecondary}`} onClick={chooseFiles}>{t("selectFiles")}</button>
+            <button className={`${btn.btn} ${btn.btnSecondary}`} onClick={chooseFolder}>{t("selectFolder")}</button>
           </div>
-          <div className="dialog-actions">
-            <button className="btn btn-ghost" onClick={() => setShowImport(false)}>{t("cancel")}</button>
+          <div className={dialogStyles.dialogActions}>
+            <button className={`${btn.btn} ${btn.btnGhost}`} onClick={() => setShowImport(false)}>{t("cancel")}</button>
           </div>
         </Dialog>
       ) : null}
@@ -330,7 +336,7 @@ export function ScannerScreen({ goBack }: { goBack: () => void }) {
         onChange={(e) => onBrowserFiles(e.target.files, true)}
       />
 
-      {toast ? <div className="toast">{toast}</div> : null}
+      {toast ? <div className={layout.toast}>{toast}</div> : null}
     </div>
   );
 }
