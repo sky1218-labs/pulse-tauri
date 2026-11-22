@@ -24,12 +24,12 @@ Your music, playlists and progress stay on your device. No account. No cloud.</p
 
 ## Download
 
-Get the latest APK from [Releases](https://github.com/stewlucite/pulse-tauri/releases) — most phones install `pulse-android-arm64-v8a.apk` (older 32-bit phones: `pulse-android-armeabi-v7a.apk`). Releases are signed with the project's release key, so updates install in place.
+Get the latest APK from [Releases](https://github.com/sky1218-labs/pulse-tauri/releases) — most phones install `pulse-android-arm64-v8a.apk` (older 32-bit phones: `pulse-android-armeabi-v7a.apk`). Releases are signed with the project's release key, so updates install in place.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/stewlucite/pulse-tauri.git
+git clone https://github.com/sky1218-labs/pulse-tauri.git
 cd pulse-tauri
 npm ci
 npm run dev

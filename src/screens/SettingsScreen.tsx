@@ -5,8 +5,8 @@ import { normalizeLocale, type LocaleCode } from "../i18n";
 import { compareVersions, displayVersion } from "../utils/sleepTimer";
 import { quantizeSpeed } from "../utils/playbackSpeed";
 
-export const APP_VERSION = "0.1.11";
-const RELEASES_API = "https://api.github.com/repos/stewlucite/pulse-tauri/releases/latest";
+export const APP_VERSION = "0.1.12";
+const RELEASES_API = "https://api.github.com/repos/sky1218-labs/pulse-tauri/releases/latest";
 
 type UpdateState =
   | { kind: "idle" }

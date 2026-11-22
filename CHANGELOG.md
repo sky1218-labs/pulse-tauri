@@ -8,6 +8,10 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 0.1.12 — 2026-11-22
+
+- The project moved to the **sky1218-labs** organization (https://github.com/sky1218-labs/pulse-tauri). All in-app and documentation links now point at the canonical location (the in-app update check included); the old addresses redirect. No functional changes.
+
 ## 0.1.11 — 2026-11-22
 
 Baseline release. Tauri 2 + React port of the Pulse local music player (Android), UI and logic matched to the original app's source code.
