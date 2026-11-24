@@ -279,7 +279,21 @@ button.ctrlBtn svg { width: 26px; height: 26px; }
   color: var(--text-hint);
   margin-top: var(--sp-xs);
 }
-.wBand { position: relative; display: flex; flex-direction: column; }
+/* The wheel is a real scroll column: fixed window (5 rows standard,
+   3 compact), snap-to-row, spacers let the first/last values centre.
+   Scrollbar hidden (global rule) and edges fade under a mask. */
+.wScroll {
+  height: 200px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+}
+.wScrollCompact { height: 90px; }
+.wPad { height: 80px; }
+.wPadCompact { height: 30px; }
 .wRow {
   height: 40px;
   display: flex;
@@ -288,6 +302,7 @@ button.ctrlBtn svg { width: 26px; height: 26px; }
   font-variant-numeric: tabular-nums;
   border-radius: var(--radius-sm);
   width: 100%;
+  scroll-snap-align: center;
 }
 .wRowCompact { height: 30px; }
 .wRowSel { background: var(--elevated); color: var(--text); font-size: 24px; font-weight: var(--fw-medium); }

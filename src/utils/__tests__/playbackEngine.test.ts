@@ -343,6 +343,53 @@ describe("NativeAudioEngine", () => {
     expect(calls.find((c) => c.cmd === "plugin:mediasession|set_stop_at_track_end")?.args).toEqual({ payload: { enabled: true } });
     void deps;
   });
+
+  it("treats empty state as a dead service: swallows it and restores on play", async () => {
+    vi.useFakeTimers();
+    const { deps, calls, state } = makeNativeDeps({ playing: true, positionMs: 42_000, durationMs: 180_000, currentId: "a", ended: false });
+    const engine = new NativeAudioEngine(deps);
+    const events: EngineEvent[] = [];
+    engine.onEvent((e) => events.push(e));
+    engine.setQueue([itemA, itemB], 0, 0, true);
+    await vi.advanceTimersByTimeAsync(500); // live snapshot ingested
+    expect(events.some((e) => e.type === "tick")).toBe(true);
+    events.length = 0;
+    // The service dies (app swiped away while paused / reclaimed):
+    // get_state now returns the empty default state.
+    Object.assign(state, { playing: false, positionMs: 0, durationMs: 0, currentId: "", ended: false });
+    await vi.advanceTimersByTimeAsync(1_000);
+    // Nothing from the empty state reaches the store (no position reset).
+    expect(events).toHaveLength(0);
+    calls.length = 0;
+    engine.play();
+    // No bare play command (it would be dropped natively); the queue is
+    // rebuilt at the remembered track + position, autoplaying.
+    expect(calls.some((c) => c.cmd === "plugin:mediasession|play")).toBe(false);
+    const restore = calls.find((c) => c.cmd === "plugin:mediasession|set_queue");
+    expect(restore?.args).toMatchObject({
+      payload: { startIndex: 0, startPositionMs: 42_000, autoplay: true, preserve: false },
+    });
+    engine.stop();
+  });
+
+  it("restores the stepped track on next() after the service died", async () => {
+    vi.useFakeTimers();
+    const { deps, calls, state } = makeNativeDeps({ playing: false, positionMs: 10_000, durationMs: 180_000, currentId: "a", ended: false });
+    const engine = new NativeAudioEngine(deps);
+    engine.onEvent(() => undefined);
+    engine.setQueue([itemA, itemB], 0, 0, false);
+    await vi.advanceTimersByTimeAsync(500);
+    Object.assign(state, { playing: false, positionMs: 0, durationMs: 0, currentId: "", ended: false });
+    await vi.advanceTimersByTimeAsync(500);
+    calls.length = 0;
+    engine.next();
+    expect(calls.some((c) => c.cmd === "plugin:mediasession|next")).toBe(false);
+    const restore = calls.find((c) => c.cmd === "plugin:mediasession|set_queue");
+    expect(restore?.args).toMatchObject({
+      payload: { startIndex: 1, startPositionMs: 0, autoplay: false, preserve: false },
+    });
+    engine.stop();
+  });
 });
 
 describe("createPlaybackEngine", () => {

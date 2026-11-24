@@ -8,6 +8,15 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 0.2.1 — 2026-11-24
+
+Bug-fix release from real-device use of 0.2.0. Storage schema, package id and signing key unchanged — all user data carries over.
+
+- Time-picker wheels (jump-to-time, sleep-timer custom time) are real scrollable wheels again — swipe, mouse wheel, scroll-snap and tap all work; in 0.2.0 they only responded to taps on the neighbouring values
+- Play/pause can no longer get stuck after the playback service stops (app swiped away while paused, or the system reclaims the service): the empty native state is recognised, the UI no longer resets to 0:00, and the next transport command rebuilds the queue at the remembered track and position instead of being silently dropped
+- Play/pause flips optimistically on tap instead of waiting for the native state round trip, so quick double-taps toggle correctly
+- Seek bar no longer fights the finger while dragging: engine ticks stop driving the thumb until the drag ends
+
 ## 0.2.0 — 2026-11-23
 
 UI redesign — same app, same data. The storage schema, package id and signing key are unchanged, so libraries, playlists, favorites, playback positions and settings carry over untouched.

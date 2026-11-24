@@ -144,6 +144,16 @@ export class NativeAudioEngine implements PlaybackEngine {
   private lastCurrentId: string | null = null;
   private lastPlaying: boolean | null = null;
   private lastEndedForId: string | null = null;
+  private lastPositionMs = 0;
+  /**
+   * Whether the native service's player is believed to exist. The service
+   * stops when the app is swiped away while paused (or the system reclaims
+   * it); from then on every transport command is silently dropped natively
+   * and get_state returns the empty default state. That empty snapshot is
+   * the death signal: mark it here and restore the queue (which restarts
+   * the service) before the next transport command.
+   */
+  private alive = false;
   /** Remembered so they can be re-applied once the service's player exists. */
   private volume: number | null = null;
   private speed: number | null = null;
@@ -193,6 +203,20 @@ export class NativeAudioEngine implements PlaybackEngine {
   private ingest(snap: NativeSnapshot): void {
     const currentId =
       typeof snap.currentId === "string" && snap.currentId ? snap.currentId : null;
+
+    if (!currentId && this.queue.length > 0 && this.lastCurrentId) {
+      // Empty state while we hold a queue and a current track: the service
+      // is gone. The snapshot carries no information (position 0, not
+      // playing) — swallowing it keeps the UI where the user left it, and
+      // `alive` makes the next transport command restore playback instead
+      // of being dropped by the missing player.
+      this.alive = false;
+      return;
+    }
+    if (currentId) {
+      this.alive = true;
+      if (typeof snap.positionMs === "number") this.lastPositionMs = snap.positionMs;
+    }
 
     if (currentId && this.lastCurrentId && currentId !== this.lastCurrentId) {
       this.emit({
@@ -271,22 +295,51 @@ export class NativeAudioEngine implements PlaybackEngine {
     }
   }
 
-  setQueue(items: EngineQueueItem[], startIndex: number, startPositionMs: number, autoplay: boolean): void {
-    this.queue = items;
-    this.ensureSubscribed();
+  private sendQueue(items: EngineQueueItem[], startIndex: number, startPositionMs: number, autoplay: boolean, preserve: boolean): void {
     this.send("set_queue", {
       payload: {
         items: items.map(toQueueItemPayload),
         startIndex,
         startPositionMs: Math.round(startPositionMs),
         autoplay,
-        preserve: false,
+        preserve,
       },
     });
     // The player may not exist yet when volume/speed were first set (the
     // store applies them before setQueue); re-apply the remembered values.
     if (this.volume !== null) this.send("set_volume", { payload: { volume: this.volume } });
     if (this.speed !== null) this.send("set_speed", { payload: { speed: this.speed } });
+  }
+
+  /**
+   * Rebuild playback after the native service died: a fresh set_queue is
+   * parked natively and restarts the service, landing on the remembered
+   * track at the remembered position.
+   */
+  private restore(autoplay: boolean, startIndex?: number, startPositionMs?: number): void {
+    if (this.queue.length === 0) return;
+    const idx = startIndex ?? Math.max(0, this.queue.findIndex((i) => i.id === this.lastCurrentId));
+    const pos = startPositionMs ?? this.lastPositionMs;
+    this.sendQueue(this.queue, idx, pos, autoplay, false);
+    const item = this.queue[idx];
+    if (item) this.lastCurrentId = item.id;
+    this.lastPositionMs = pos;
+    this.alive = true;
+    this.startPoll();
+  }
+
+  private get dead(): boolean {
+    return this.queue.length > 0 && !this.alive;
+  }
+
+  setQueue(items: EngineQueueItem[], startIndex: number, startPositionMs: number, autoplay: boolean): void {
+    this.queue = items;
+    this.ensureSubscribed();
+    this.sendQueue(items, startIndex, startPositionMs, autoplay, false);
+    this.lastPositionMs = startPositionMs;
+    // Optimistic: we just commanded the service into existence. If it
+    // fails to materialise, the next empty poll snapshot marks it dead.
+    this.alive = items.length > 0;
     if (items.length > 0) this.startPoll();
     else this.stopPoll();
   }
@@ -295,18 +348,14 @@ export class NativeAudioEngine implements PlaybackEngine {
     this.queue = items;
     this.ensureSubscribed();
     const startIndex = Math.max(0, items.findIndex((i) => i.id === this.lastCurrentId));
-    this.send("set_queue", {
-      payload: {
-        items: items.map(toQueueItemPayload),
-        startIndex,
-        startPositionMs: 0,
-        autoplay: this.lastPlaying ?? false,
-        preserve: true,
-      },
-    });
+    this.sendQueue(items, startIndex, 0, this.lastPlaying ?? false, true);
   }
 
   play(): void {
+    if (this.dead) {
+      this.restore(true);
+      return;
+    }
     this.send("play");
   }
 
@@ -315,18 +364,37 @@ export class NativeAudioEngine implements PlaybackEngine {
   }
 
   next(): void {
+    if (this.dead) {
+      const idx = Math.max(0, this.queue.findIndex((i) => i.id === this.lastCurrentId));
+      this.restore(this.lastPlaying ?? false, (idx + 1) % this.queue.length, 0);
+      return;
+    }
     this.send("next");
   }
 
   previous(): void {
+    if (this.dead) {
+      const idx = Math.max(0, this.queue.findIndex((i) => i.id === this.lastCurrentId));
+      this.restore(this.lastPlaying ?? false, (idx - 1 + this.queue.length) % this.queue.length, 0);
+      return;
+    }
     this.send("previous");
   }
 
   seekTo(ms: number): void {
-    this.send("seek_to", { payload: { positionMs: Math.round(Math.max(0, ms)) } });
+    const target = Math.round(Math.max(0, ms));
+    if (this.dead) {
+      this.restore(this.lastPlaying ?? false, undefined, target);
+      return;
+    }
+    this.send("seek_to", { payload: { positionMs: target } });
   }
 
   seekBy(deltaMs: number): void {
+    if (this.dead) {
+      this.restore(this.lastPlaying ?? false, undefined, Math.max(0, this.lastPositionMs + deltaMs));
+      return;
+    }
     this.send("seek_by", { payload: { deltaMs: Math.round(deltaMs) } });
   }
 
@@ -351,6 +419,8 @@ export class NativeAudioEngine implements PlaybackEngine {
     this.lastCurrentId = null;
     this.lastPlaying = null;
     this.lastEndedForId = null;
+    this.lastPositionMs = 0;
+    this.alive = false;
   }
 
   onEvent(cb: (e: EngineEvent) => void): void {

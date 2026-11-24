@@ -38,29 +38,67 @@ function fillStyle(value: number, min: number, max: number): React.CSSProperties
 }
 
 /** iOS-style wheel column like the original ListWheelScrollView pickers:
- *  selected value in a highlighted band, neighbours fading out. Click a
- *  neighbour to move to it. */
+ *  a real scrollable column (touch / mouse wheel / click) with scroll-snap;
+ *  the centred value sits in the highlighted band, neighbours fade out
+ *  under the edge mask. The value is committed when scrolling settles. */
 export function Wheel({ value, max, onChange, label, labelBelow, compact }: {
   value: number; max: number; onChange: (v: number) => void;
   label?: string; labelBelow?: boolean; compact?: boolean;
 }) {
-  const offsets = compact ? [-1, 0, 1] : [-2, -1, 0, 1, 2];
-  const rowClass = `${styles.wRow}${compact ? ` ${styles.wRowCompact}` : ""}`;
+  const rowH = compact ? 30 : 40;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const settleRef = useRef<number | undefined>(undefined);
+  const [center, setCenter] = useState(value);
+
+  // Mount: land on the value instantly (no animation).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = value * rowH;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // External value changes (row click, parent state) glide into place.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCenter(value);
+    const target = value * rowH;
+    if (Math.abs(el.scrollTop - target) > 1) {
+      el.scrollTo({ top: target, behavior: "smooth" });
+    }
+  }, [value, rowH]);
+
+  useEffect(() => () => window.clearTimeout(settleRef.current), []);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx = Math.min(max, Math.max(0, Math.round(el.scrollTop / rowH)));
+    setCenter(idx);
+    window.clearTimeout(settleRef.current);
+    settleRef.current = window.setTimeout(() => {
+      if (idx !== value) onChange(idx);
+    }, 90);
+  };
+
+  const rowClass = (v: number) => {
+    const d = Math.abs(v - center);
+    return `${styles.wRow}${compact ? ` ${styles.wRowCompact}` : ""} ${d === 0 ? styles.wRowSel : d === 1 ? styles.wRowNear : styles.wRowFar}`;
+  };
+
   return (
     <div className={styles.wheel}>
       {label && !labelBelow ? <div className={styles.wLabel}>{label}</div> : null}
-      <div className={styles.wBand}>
-        {offsets.map((off) => {
-          const v = value + off;
-          if (v < 0 || v > max) return <div key={off} className={rowClass} />;
-          return (
-            <button
-              key={off}
-              className={`${rowClass} ${off === 0 ? styles.wRowSel : Math.abs(off) === 1 ? styles.wRowNear : styles.wRowFar}`}
-              onClick={() => onChange(v)}
-            >{pad2(v)}</button>
-          );
-        })}
+      <div
+        className={`${styles.wScroll}${compact ? ` ${styles.wScrollCompact}` : ""}`}
+        ref={scrollRef}
+        onScroll={handleScroll}
+      >
+        <div className={compact ? styles.wPadCompact : styles.wPad} />
+        {Array.from({ length: max + 1 }, (_, v) => (
+          <button key={v} className={rowClass(v)} onClick={() => onChange(v)}>{pad2(v)}</button>
+        ))}
+        <div className={compact ? styles.wPadCompact : styles.wPad} />
       </div>
       {label && labelBelow ? <div className={styles.wLabelBelow}>{label}</div> : null}
     </div>
@@ -277,6 +315,10 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
   const [showSleep, setShowSleep] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const [showSpeed, setShowSpeed] = useState(false);
+  // While the seek thumb is being dragged it shows the scrub position —
+  // engine ticks keep reporting the pre-seek position until the seek
+  // lands, and letting them drive the input makes the thumb fight back.
+  const [scrub, setScrub] = useState<number | null>(null);
   const [, forceTick] = useState(0);
   const lastVolumeRef = useRef(1);
 
@@ -373,9 +415,16 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
             type="range"
             min={0}
             max={Math.max(1, player.durationMs)}
-            value={Math.min(player.positionMs, player.durationMs || player.positionMs)}
-            style={{ ...fillStyle(player.positionMs, 0, Math.max(1, player.durationMs)) }}
-            onChange={(e) => player.seek(parseFloat(e.target.value))}
+            value={scrub ?? Math.min(player.positionMs, player.durationMs || player.positionMs)}
+            style={{ ...fillStyle(scrub ?? player.positionMs, 0, Math.max(1, player.durationMs)) }}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setScrub(v);
+              player.seek(v);
+            }}
+            onPointerUp={() => setScrub(null)}
+            onPointerCancel={() => setScrub(null)}
+            onBlur={() => setScrub(null)}
             aria-label="seek"
           />
           <button className={styles.jumpBtn} onClick={() => setShowJump(true)} aria-label={t("jumpToTime")}>
@@ -388,7 +437,7 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
           </button>
         </div>
         <div className={styles.timeLabels}>
-          <span>{formatTime(player.positionMs)}</span>
+          <span>{formatTime(scrub ?? player.positionMs)}</span>
           <span>{formatTime(player.durationMs)}</span>
         </div>
 

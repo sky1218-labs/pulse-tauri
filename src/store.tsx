@@ -487,8 +487,17 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     togglePlay: () => {
       if (!current) return;
       tap();
-      if (playing) engineRef.current!.pause();
-      else engineRef.current!.play();
+      // Optimistic flip: the button must respond on the tap itself, not
+      // after the native state snapshot makes its round trip — a slow or
+      // dropped snapshot otherwise reads as a stuck button. Engine events
+      // reconcile if reality disagrees.
+      if (playing) {
+        engineRef.current!.pause();
+        setPlaying(false);
+      } else {
+        engineRef.current!.play();
+        setPlaying(true);
+      }
     },
     next: () => { tap(); step(1); },
     previous: () => { tap(); step(-1); },
