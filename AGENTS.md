@@ -22,10 +22,11 @@ ExoPlayer/MediaSession plugin for native playback. No accounts, no cloud.
 
 ## Architecture map
 
-- `src/store.tsx` — app state. Two contexts on purpose:
-  `PlayerContext` (library, queue, playback flags — changes rarely) and
-  `ProgressContext` (position/duration — changes twice a second). Playback
-  positions live in a **ref**, not in state.
+- `src/store.tsx` — app state, split into contexts on purpose:
+  `LibraryContext` (tracks/playlists), `PlayerContext` (queue, playback
+  flags — changes rarely) and `ProgressContext` (position/duration —
+  changes twice a second). Playback positions live in a **ref**, not in
+  state.
 - `src/repository.ts` — persistence. Everything is localStorage JSON
   (known limitation; a SQLite migration must stay data-compatible).
 - `src/utils/playbackEngine.ts` — web engine (HTMLAudio, for dev/tests)
