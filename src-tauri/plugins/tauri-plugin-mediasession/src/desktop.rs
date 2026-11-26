@@ -42,6 +42,10 @@ impl<R: Runtime> MediaSession<R> {
         Ok(())
     }
 
+    pub fn seek_to_index(&self, _payload: SeekToIndexPayload) -> crate::Result<()> {
+        Ok(())
+    }
+
     pub fn seek_by(&self, _payload: SeekByPayload) -> crate::Result<()> {
         Ok(())
     }

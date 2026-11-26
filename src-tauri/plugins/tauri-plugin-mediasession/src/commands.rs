@@ -41,6 +41,14 @@ pub async fn seek_to<R: Runtime>(
 }
 
 #[command]
+pub async fn seek_to_index<R: Runtime>(
+    app: AppHandle<R>,
+    payload: SeekToIndexPayload,
+) -> Result<()> {
+    app.mediasession().seek_to_index(payload)
+}
+
+#[command]
 pub async fn seek_by<R: Runtime>(
     app: AppHandle<R>,
     payload: SeekByPayload,

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use lofty::prelude::*;
@@ -97,31 +98,40 @@ fn read_metadata(path: &Path) -> Result<AudioMetadata, String> {
 }
 
 #[tauri::command]
-fn get_audio_metadata(path: String) -> Result<AudioMetadata, String> {
-    read_metadata(Path::new(&path))
+async fn get_audio_metadata(path: String) -> Result<AudioMetadata, String> {
+    tauri::async_runtime::spawn_blocking(move || read_metadata(Path::new(&path)))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Recursively scan a folder for supported audio files and read their tags.
 /// Unreadable files are skipped (matching the original scanner behaviour of
 /// reporting what it could read rather than failing the whole scan).
 #[tauri::command]
-fn scan_folder(path: String) -> Result<Vec<AudioMetadata>, String> {
+async fn scan_folder(path: String) -> Result<Vec<AudioMetadata>, String> {
+    tauri::async_runtime::spawn_blocking(move || scan_folder_blocking(path))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn scan_folder_blocking(path: String) -> Result<Vec<AudioMetadata>, String> {
     let root = PathBuf::from(&path);
     if !root.is_dir() {
         return Err(format!("Not a directory: {path}"));
     }
     let mut results: Vec<AudioMetadata> = Vec::new();
-    let mut seen: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
     for entry in WalkDir::new(&root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
         let p = entry.path();
         if !p.is_file() || !is_audio(p) {
             continue;
         }
         if let Ok(meta) = read_metadata(p) {
-            if seen.contains(&meta.path) {
+            // HashSet insert is O(1); the old Vec::contains scan made the
+            // whole folder scan O(n^2) in the number of audio files.
+            if !seen.insert(meta.path.clone()) {
                 continue;
             }
-            seen.push(meta.path.clone());
             results.push(meta);
         }
     }

@@ -380,7 +380,9 @@ describe("NativeAudioEngine", () => {
     engine.setQueue([itemA, itemB], 0, 0, false);
     await vi.advanceTimersByTimeAsync(500);
     Object.assign(state, { playing: false, positionMs: 0, durationMs: 0, currentId: "", ended: false });
-    await vi.advanceTimersByTimeAsync(500);
+    // Paused polls run at the slower 2s cadence, so death detection takes
+    // one slow tick (previously one 500ms tick).
+    await vi.advanceTimersByTimeAsync(2_000);
     calls.length = 0;
     engine.next();
     expect(calls.some((c) => c.cmd === "plugin:mediasession|next")).toBe(false);
@@ -389,6 +391,41 @@ describe("NativeAudioEngine", () => {
       payload: { startIndex: 1, startPositionMs: 0, autoplay: false, preserve: false },
     });
     engine.stop();
+  });
+});
+
+describe("same-queue fast path", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("native: re-tapping within the same queue sends seek_to_index, not a full set_queue", async () => {
+    vi.useFakeTimers();
+    const { deps, calls } = makeNativeDeps({ playing: true, positionMs: 0, durationMs: 180_000, currentId: "a", ended: false });
+    const engine = new NativeAudioEngine(deps);
+    const events: EngineEvent[] = [];
+    engine.onEvent((e) => events.push(e));
+    engine.setQueue([itemA, itemB], 0, 0, true);
+    await vi.advanceTimersByTimeAsync(500); // live snapshot: alive + current a
+    calls.length = 0;
+    engine.setQueue([itemA, itemB], 1, 5_000, true);
+    expect(calls.some((c) => c.cmd === "plugin:mediasession|set_queue")).toBe(false);
+    expect(calls.find((c) => c.cmd === "plugin:mediasession|seek_to_index")?.args).toEqual({
+      payload: { index: 1, positionMs: 5_000, autoplay: true },
+    });
+    expect(events).toContainEqual({ type: "transition", previousId: "a", currentId: "b" });
+    engine.stop();
+  });
+
+  it("web: re-tapping within the same queue loads only the target item", async () => {
+    const { audio, engine, events } = makeWebEngine();
+    engine.setQueue([itemA, itemB], 0, 0, true);
+    await completeLoad(audio, 180);
+    events.length = 0;
+    engine.setQueue([itemA, itemB], 1, 0, true);
+    expect(events).toContainEqual({ type: "transition", previousId: "a", currentId: "b" });
+    await completeLoad(audio, 240);
+    expect(audio.src).toBe("src:/music/b.mp3");
   });
 });
 

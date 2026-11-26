@@ -124,6 +124,10 @@ interface NativeSnapshot {
   error?: string;
 }
 
+function sameQueueIds(a: EngineQueueItem[], b: EngineQueueItem[]): boolean {
+  return a.length === b.length && a.every((item, i) => item.id === b[i].id);
+}
+
 function toQueueItemPayload(item: EngineQueueItem): Record<string, unknown> {
   return {
     id: item.id,
@@ -140,7 +144,8 @@ export class NativeAudioEngine implements PlaybackEngine {
   private cb: ((e: EngineEvent) => void) | null = null;
   private queue: EngineQueueItem[] = [];
   private subscribed = false;
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private stopAtEnd = false;
   private lastCurrentId: string | null = null;
   private lastPlaying: boolean | null = null;
   private lastEndedForId: string | null = null;
@@ -272,16 +277,24 @@ export class NativeAudioEngine implements PlaybackEngine {
     });
   }
 
+  /* Poll cadence follows playback: 500ms while playing (progress ticks),
+     2s while paused (only external state changes — lock-screen / Bluetooth
+     transport — need noticing). The old fixed 500ms poll kept the IPC
+     bridge and the store busy even when nothing could change. */
   private startPoll(): void {
     if (this.pollTimer !== null) return;
-    this.pollTimer = setInterval(() => {
-      void this.pollOnce();
-    }, 500);
+    const step = async () => {
+      this.pollTimer = null;
+      await this.pollOnce();
+      if (this.queue.length === 0) return;
+      this.pollTimer = setTimeout(step, this.lastPlaying ? 500 : 2_000);
+    };
+    this.pollTimer = setTimeout(step, 500);
   }
 
   private stopPoll(): void {
     if (this.pollTimer !== null) {
-      clearInterval(this.pollTimer);
+      clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
   }
@@ -333,6 +346,35 @@ export class NativeAudioEngine implements PlaybackEngine {
   }
 
   setQueue(items: EngineQueueItem[], startIndex: number, startPositionMs: number, autoplay: boolean): void {
+    // Fast path: the native player already holds this exact queue (the
+    // common case — tapping another track in the list the user is already
+    // playing from). Re-sending every item made each tap serialize the
+    // whole library across the bridge and rebuild every MediaItem; a
+    // seek-to-index carries the same intent in one small command. The
+    // collapsed single-item list (stop-at-track-end) is excluded: its
+    // indices do not line up with the full queue.
+    if (
+      items.length > 0 &&
+      !this.stopAtEnd &&
+      !this.dead &&
+      sameQueueIds(items, this.queue)
+    ) {
+      const idx = Math.min(Math.max(0, startIndex), items.length - 1);
+      this.send("seek_to_index", {
+        payload: { index: idx, positionMs: Math.round(startPositionMs), autoplay },
+      });
+      const item = items[idx];
+      if (item) {
+        if (this.lastCurrentId && this.lastCurrentId !== item.id) {
+          this.emit({ type: "transition", previousId: this.lastCurrentId, currentId: item.id });
+        }
+        this.lastCurrentId = item.id;
+      }
+      this.lastPositionMs = startPositionMs;
+      this.lastPlaying = autoplay;
+      this.startPoll();
+      return;
+    }
     this.queue = items;
     this.ensureSubscribed();
     this.sendQueue(items, startIndex, startPositionMs, autoplay, false);
@@ -409,11 +451,13 @@ export class NativeAudioEngine implements PlaybackEngine {
   }
 
   setStopAtTrackEnd(enabled: boolean): void {
+    this.stopAtEnd = enabled;
     this.send("set_stop_at_track_end", { payload: { enabled } });
   }
 
   stop(): void {
     this.send("stop_playback");
+    this.stopAtEnd = false;
     this.stopPoll();
     this.queue = [];
     this.lastCurrentId = null;
@@ -543,6 +587,17 @@ export class WebAudioEngine implements PlaybackEngine {
   }
 
   setQueue(items: EngineQueueItem[], startIndex: number, startPositionMs: number, autoplay: boolean): void {
+    if (items.length > 0 && sameQueueIds(items, this.queue)) {
+      const idx = Math.min(Math.max(0, startIndex), items.length - 1);
+      const prev = this.currentItem();
+      this.index = idx;
+      const item = items[idx];
+      if (prev && prev.id !== item.id) {
+        this.emit({ type: "transition", previousId: prev.id, currentId: item.id });
+      }
+      void this.load(item, startPositionMs, autoplay);
+      return;
+    }
     this.queue = items;
     if (items.length === 0) {
       this.index = -1;

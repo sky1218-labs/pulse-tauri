@@ -8,6 +8,19 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## Unreleased — performance pass
+
+Fixes the "doesn't feel like a native app" jank reported on 0.2.1. Storage schema, package id and signing key unchanged — all user data carries over.
+
+- Playback progress no longer re-renders the app: position/duration moved out of the player context into a dedicated progress context, so the twice-a-second tick only updates the mini-player bar and the player screen. Track rows are memoized and skip off-screen layout/paint (`content-visibility`)
+- Position saves are no longer full-library writes: they update an in-memory ref and persist debounced (800ms, flushed on page-hide) instead of synchronously serializing the entire library to localStorage on every tick, seek and pause — and they no longer trigger a library re-render
+- Seek bar commits once on release instead of seeking + saving on every drag event; the Settings sliders (volume, speed, skip intervals) do the same
+- Tapping another track in the queue that is already loaded no longer re-sends the whole queue across the bridge: new native `seek_to_index` command (plugin + Kotlin + web engine fast path)
+- Native state polling slows down while paused (500ms → 2s); it only needs to notice external transport changes then
+- Folder scan no longer blocks: the Rust commands run on a blocking worker thread, and dedupe is a HashSet instead of an O(n²) Vec scan; the scanning screen no longer claims "0 files found" mid-scan
+- Library home keeps its scroll position when you come back to it
+- Mini-player progress is a composited `scaleX` transform instead of a width repaint, its glass blur is cheaper (20px → 12px), and the equalizer bars animate `scaleY` instead of `height`
+
 ## 0.2.1 — 2026-11-24
 
 Bug-fix release from real-device use of 0.2.0. Storage schema, package id and signing key unchanged — all user data carries over.

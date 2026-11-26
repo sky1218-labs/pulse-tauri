@@ -54,6 +54,11 @@ impl<R: Runtime> MediaSession<R> {
         Ok(())
     }
 
+    pub fn seek_to_index(&self, payload: SeekToIndexPayload) -> crate::Result<()> {
+        self.0.run_mobile_plugin::<()>("seekToIndex", payload)?;
+        Ok(())
+    }
+
     pub fn seek_by(&self, payload: SeekByPayload) -> crate::Result<()> {
         self.0.run_mobile_plugin::<()>("seekBy", payload)?;
         Ok(())

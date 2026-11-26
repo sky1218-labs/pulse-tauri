@@ -35,6 +35,14 @@ pub struct SeekToPayload {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SeekToIndexPayload {
+    pub index: u32,
+    pub position_ms: u64,
+    pub autoplay: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SeekByPayload {
     pub delta_ms: i64,
 }

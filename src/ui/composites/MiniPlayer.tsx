@@ -1,17 +1,18 @@
 import { Icon, Equalizer, PlayPauseIcon } from "../primitives/Icon";
 import btn from "../primitives/Button.module.css";
 import { displayTitle } from "../../utils/playlist";
-import { usePlayer } from "../../store";
+import { usePlayer, useProgress } from "../../store";
 import styles from "./MiniPlayer.module.css";
 
 export function MiniPlayer({ onOpen, hidden }: { onOpen: () => void; hidden?: boolean }) {
   const player = usePlayer();
+  const { positionMs, durationMs } = useProgress();
   if (!player.current) return null;
-  const progress = player.durationMs > 0 ? (player.positionMs / player.durationMs) * 100 : 0;
+  const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
   return (
     <div className={`${styles.miniPlayer}${hidden ? ` ${styles.shellHidden}` : ""}`} aria-hidden={hidden || undefined}>
       <div className={styles.progressTrack} />
-      <div className={styles.progress} style={{ width: `${progress}%` }} />
+      <div className={styles.progress} style={{ transform: `scaleX(${progress})` }} />
       <div className={styles.art} onClick={onOpen}>
         {player.current.artworkPath ? <img src={player.current.artworkPath} alt="" /> : <Icon name="music" />}
       </div>

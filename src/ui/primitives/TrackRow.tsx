@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Track } from "../../utils/playlist";
 import { displayTitle } from "../../utils/playlist";
 import { formatTime } from "../../utils/time";
@@ -6,7 +7,7 @@ import { Icon, Equalizer } from "./Icon";
 import forms from "./forms.module.css";
 import styles from "./TrackRow.module.css";
 
-export function TrackRow({
+export const TrackRow = memo(function TrackRow({
   track, queue, onMenu, selected, onSelect, inert,
 }: {
   track: Track;
@@ -53,4 +54,4 @@ export function TrackRow({
       </div>
     </div>
   );
-}
+});

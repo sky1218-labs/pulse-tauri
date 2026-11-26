@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../ui/primitives/Icon";
 import { TrackRow } from "../ui/primitives/TrackRow";
 import { Dialog, ConfirmDialog } from "../ui/primitives/Dialog";
@@ -8,6 +8,12 @@ import type { Track } from "../utils/playlist";
 import { displayTitle } from "../utils/playlist";
 import { useLibrary, usePlayer } from "../store";
 import styles from "./HomeScreen.module.css";
+
+/* Screens unmount on navigation, so without this the library list jumped
+   back to the top every time the user came back from the player or a
+   dialog route — one of the least native-feeling behaviours in the app.
+   The offset survives in module scope for the session. */
+let savedHomeScrollTop = 0;
 
 export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
   goScanner: () => void; goPlaylists: () => void; goSettings: () => void;
@@ -36,13 +42,23 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
     return [...stamped].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)).slice(0, 8);
   }, [data.tracks]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && savedHomeScrollTop > 0) el.scrollTop = savedHomeScrollTop;
+  }, []);
+
   const showToast = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2200);
   };
 
   return (
-    <div className={`${layout.screen} ${layout.pad16}`}>
+    <div
+      className={`${layout.screen} ${layout.pad16}`}
+      ref={scrollRef}
+      onScroll={(e) => { savedHomeScrollTop = e.currentTarget.scrollTop; }}
+    >
       <div className={styles.homeHeader}>
         <div>
           <h1 className={styles.displayTitle}>{t("musicLibrary")}</h1>

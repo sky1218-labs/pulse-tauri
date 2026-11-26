@@ -1,6 +1,8 @@
 /* Track row — one anatomy everywhere: [art 48] title / artist · duration.
    Fixed 64px height; divider-less, spacing-separated, rounded highlight. */
 .trackRow {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
   display: flex;
   align-items: center;
   gap: var(--sp-mdsm);

@@ -5,7 +5,7 @@
   position: relative;
   margin: 0 var(--sp-sm) calc(var(--sp-sm) + var(--inset-bottom));
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.25);
   border-top: 1px solid var(--glass-border);
   border-radius: var(--radius-mini);
   height: 64px;
@@ -59,13 +59,17 @@
   text-overflow: ellipsis;
 }
 
-/* Progress rides the bottom edge; width % is set inline (runtime value). */
+/* Progress rides the bottom edge; scaleX is set inline (runtime value) —
+   transform is composited, so the twice-a-second tick never repaints. */
 .progress {
   position: absolute;
   left: 0;
+  right: 0;
   bottom: 0;
   height: 2px;
   background: var(--progress-fill);
+  transform-origin: left center;
+  transform: scaleX(0);
 }
 .progressTrack {
   position: absolute;

@@ -84,6 +84,36 @@ function ActionCard({ title, desc, icon, danger, onClick, trailing }: {
   );
 }
 
+/**
+ * Range input that keeps the drag local and commits once on release.
+ * Settings writes serialize the whole library, so committing on every
+ * input event (the old behaviour) made these sliders drag through a
+ * full save per step. Keyboard users commit on blur / key-up.
+ */
+function CommitSlider({ value, min, max, step, ariaLabel, onCommit }: {
+  value: number; min: number; max: number; step: number;
+  ariaLabel: string; onCommit: (v: number) => void;
+}) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const shown = draft ?? value;
+  const commit = () => {
+    if (draft !== null && draft !== value) onCommit(draft);
+    setDraft(null);
+  };
+  return (
+    <input
+      type="range" className={forms.rangeWhite} min={min} max={max} step={step} value={shown}
+      style={sliderStyle(shown, min, max)}
+      onChange={(e) => setDraft(parseFloat(e.target.value))}
+      onPointerUp={commit}
+      onPointerCancel={commit}
+      onKeyUp={commit}
+      onBlur={commit}
+      aria-label={ariaLabel}
+    />
+  );
+}
+
 const LOCALES: { code: LocaleCode; label: string }[] = [
   { code: "zh-TW", label: "繁體中文" },
   { code: "zh-CN", label: "简体中文" },
@@ -154,20 +184,12 @@ export function SettingsScreen({ goBack, goScanner }: { goBack: () => void; goSc
 
       <h3 className={styles.setSection}>{t("playback")}</h3>
       <SliderCard title={t("defaultVolume")} valueLabel={`${Math.round(s.defaultVolume * 100)}%`}>
-        <input
-          type="range" className={forms.rangeWhite} min={0} max={1} step={0.05} value={s.defaultVolume}
-          style={sliderStyle(s.defaultVolume, 0, 1)}
-          onChange={(e) => { const v = parseFloat(e.target.value); updateSettings({ defaultVolume: v }); player.setVolume(v); }}
-          aria-label={t("defaultVolume")}
-        />
+        <CommitSlider value={s.defaultVolume} min={0} max={1} step={0.05} ariaLabel={t("defaultVolume")}
+          onCommit={(v) => { updateSettings({ defaultVolume: v }); player.setVolume(v); }} />
       </SliderCard>
       <SliderCard title={t("defaultSpeed")} valueLabel={fmtSpeed(s.defaultPlaybackSpeed)}>
-        <input
-          type="range" className={forms.rangeWhite} min={0.5} max={2} step={0.05} value={quantizeSpeed(s.defaultPlaybackSpeed)}
-          style={sliderStyle(quantizeSpeed(s.defaultPlaybackSpeed), 0.5, 2)}
-          onChange={(e) => { const v = quantizeSpeed(parseFloat(e.target.value)); updateSettings({ defaultPlaybackSpeed: v }); player.setSpeed(v); }}
-          aria-label={t("defaultSpeed")}
-        />
+        <CommitSlider value={quantizeSpeed(s.defaultPlaybackSpeed)} min={0.5} max={2} step={0.05} ariaLabel={t("defaultSpeed")}
+          onCommit={(v) => { const q = quantizeSpeed(v); updateSettings({ defaultPlaybackSpeed: q }); player.setSpeed(q); }} />
       </SliderCard>
       <SwitchCard title={t("autoResume")} desc={t("autoResumeDesc")} on={s.autoResume}
         onToggle={() => updateSettings({ autoResume: !s.autoResume })} />
@@ -178,20 +200,12 @@ export function SettingsScreen({ goBack, goScanner }: { goBack: () => void; goSc
 
       <h3 className={styles.setSection}>{t("skipSettings")}</h3>
       <SliderCard title={t("skipForward")} valueLabel={t("seconds", { n: s.skipForwardSeconds })}>
-        <input
-          type="range" className={forms.rangeWhite} min={5} max={60} step={5} value={s.skipForwardSeconds}
-          style={sliderStyle(s.skipForwardSeconds, 5, 60)}
-          onChange={(e) => updateSettings({ skipForwardSeconds: parseInt(e.target.value, 10) })}
-          aria-label={t("skipForward")}
-        />
+        <CommitSlider value={s.skipForwardSeconds} min={5} max={60} step={5} ariaLabel={t("skipForward")}
+          onCommit={(v) => updateSettings({ skipForwardSeconds: Math.round(v) })} />
       </SliderCard>
       <SliderCard title={t("skipBackward")} valueLabel={t("seconds", { n: s.skipBackwardSeconds })}>
-        <input
-          type="range" className={forms.rangeWhite} min={5} max={60} step={5} value={s.skipBackwardSeconds}
-          style={sliderStyle(s.skipBackwardSeconds, 5, 60)}
-          onChange={(e) => updateSettings({ skipBackwardSeconds: parseInt(e.target.value, 10) })}
-          aria-label={t("skipBackward")}
-        />
+        <CommitSlider value={s.skipBackwardSeconds} min={5} max={60} step={5} ariaLabel={t("skipBackward")}
+          onCommit={(v) => updateSettings({ skipBackwardSeconds: Math.round(v) })} />
       </SliderCard>
 
       <h3 className={styles.setSection}>{t("features")}</h3>

@@ -36,6 +36,13 @@ class SeekToArgs {
 }
 
 @InvokeArg
+class SeekToIndexArgs {
+    var index: Int = 0
+    var positionMs: Long = 0
+    var autoplay: Boolean = true
+}
+
+@InvokeArg
 class SeekByArgs {
     var deltaMs: Long = 0
 }
@@ -153,6 +160,21 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.resolve()
         } catch (t: Throwable) {
             invoke.reject(t.message ?: "seekTo failed")
+        }
+    }
+
+    @Command
+    fun seekToIndex(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(SeekToIndexArgs::class.java)
+            PlaybackStore.withPlayer {
+                it.seekTo(args.index.coerceAtLeast(0), args.positionMs.coerceAtLeast(0L))
+                it.playWhenReady = args.autoplay
+                it.prepare()
+            }
+            invoke.resolve()
+        } catch (t: Throwable) {
+            invoke.reject(t.message ?: "seekToIndex failed")
         }
     }
 

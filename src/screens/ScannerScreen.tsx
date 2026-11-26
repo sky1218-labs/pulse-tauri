@@ -250,7 +250,6 @@ export function ScannerScreen({ goBack }: { goBack: () => void }) {
         <div className={styles.scanningWrap}>
           <div className={styles.scanCard}>
             <div className={styles.scHead}><span className={forms.spinner} /> {t("scanning")}</div>
-            <div className={styles.scLine}>{t("filesFound", { n: 0 })}</div>
           </div>
         </div>
       ) : null}

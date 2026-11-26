@@ -42,6 +42,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::next,
             commands::previous,
             commands::seek_to,
+            commands::seek_to_index,
             commands::seek_by,
             commands::set_volume,
             commands::set_speed,

@@ -67,6 +67,10 @@ export async function seekTo(positionMs: number): Promise<void> {
   await invoke(cmd("seek_to"), { payload: { positionMs } });
 }
 
+export async function seekToIndex(index: number, positionMs: number, autoplay: boolean): Promise<void> {
+  await invoke(cmd("seek_to_index"), { payload: { index, positionMs, autoplay } });
+}
+
 export async function seekBy(deltaMs: number): Promise<void> {
   await invoke(cmd("seek_by"), { payload: { deltaMs } });
 }

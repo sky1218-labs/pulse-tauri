@@ -62,8 +62,6 @@ interface PlayerCtx {
   current: Track | null;
   queue: Track[];
   playing: boolean;
-  positionMs: number;
-  durationMs: number;
   volume: number;
   speed: number;
   sleepTimer: SleepTimerState | null;
@@ -91,6 +89,19 @@ export const usePlayer = () => {
   return ctx;
 };
 
+/* Playback progress lives in its own context: it changes twice a second
+   while playing, and keeping it inside PlayerCtx re-rendered every
+   usePlayer() consumer (the whole track list included) on every tick.
+   Only true progress displays (mini-player bar, player screen) subscribe
+   here; everything else reads the stable player context above. */
+export interface ProgressCtx {
+  positionMs: number;
+  durationMs: number;
+}
+
+const ProgressContext = createContext<ProgressCtx>({ positionMs: 0, durationMs: 0 });
+export const useProgress = () => useContext(ProgressContext);
+
 function toEngineItem(track: Track): EngineQueueItem {
   return {
     id: track.id,
@@ -107,6 +118,53 @@ function toEngineItem(track: Track): EngineQueueItem {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [data, setDataState] = useState<LibraryData>(() => loadLibrary());
   const dataRef = useRef(data);
+  /* Positions are the hottest writes in the app (every 5s tick, every
+     seek, every pause). Routing them through setDataState re-rendered the
+     whole library and synchronously JSON-serialized it to localStorage
+     each time. They now live in this ref: writes are O(1), never trigger
+     a render, and persistence is debounced into one save. setData merges
+     the ref back in, and structural edits that change positions
+     (remove track / clear library) replace the ref. */
+  const positionsRef = useRef(data.positions);
+  const persistTimerRef = useRef<number | null>(null);
+  const schedulePersist = useCallback(() => {
+    if (persistTimerRef.current !== null) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      saveLibrary(dataRef.current);
+    }, 800);
+  }, []);
+  const flushPersist = useCallback(() => {
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    saveLibrary(dataRef.current);
+  }, []);
+  const flushPersistRef = useRef(flushPersist);
+  flushPersistRef.current = flushPersist;
+  const savePositionFast = useCallback((path: string, ms: number) => {
+    const key = canonicalize(path);
+    const value = Math.floor(ms);
+    if (positionsRef.current[key] === value) return;
+    positionsRef.current = { ...positionsRef.current, [key]: value };
+    dataRef.current = { ...dataRef.current, positions: positionsRef.current };
+    schedulePersist();
+  }, [schedulePersist]);
+  const resetPositionsFast = useCallback(() => {
+    positionsRef.current = {};
+    dataRef.current = { ...dataRef.current, positions: positionsRef.current };
+    schedulePersist();
+  }, [schedulePersist]);
+  const clearPositionFast = useCallback((path: string) => {
+    const key = canonicalize(path);
+    if (!(key in positionsRef.current)) return;
+    const next = { ...positionsRef.current };
+    delete next[key];
+    positionsRef.current = next;
+    dataRef.current = { ...dataRef.current, positions: next };
+    schedulePersist();
+  }, [schedulePersist]);
   // Assigned by the player section below; lets library mutations that remove
   // content (remove track / clear library / clear all data) stop playback of
   // something that no longer exists instead of leaving a ghost playing.
@@ -114,12 +172,20 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const trackRemovedRef = useRef<(trackId: string) => void>(() => {});
   const setData = useCallback((updater: (d: LibraryData) => LibraryData) => {
     setDataState((prev) => {
-      const next = updater(prev);
+      const raw = updater(prev);
+      // An updater that touched positions wins and becomes the new ref;
+      // otherwise the ref (which may hold newer tick/seek writes than the
+      // state copy) is merged back so a structural save never rolls a
+      // position backwards.
+      const next = raw.positions !== prev.positions
+        ? raw
+        : { ...raw, positions: positionsRef.current };
+      if (raw.positions !== prev.positions) positionsRef.current = raw.positions;
       dataRef.current = next;
-      saveLibrary(next);
+      schedulePersist();
       return next;
     });
-  }, []);
+  }, [schedulePersist]);
 
   const tracksById = useMemo(() => new Map(data.tracks.map((t) => [t.id, t])), [data.tracks]);
   const locale = data.settings.locale;
@@ -155,21 +221,21 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setData((d) => ({ ...d, playlists: ensureFolderPlaylists(d.playlists, resolved, newId) }));
     },
     removeTrackFromLibrary: (trackId) => {
-      setData((d) => {
-        const track = d.tracks.find((x) => x.id === trackId);
-        const positions = { ...d.positions };
-        if (track) delete positions[canonicalize(track.path)];
-        return {
-          ...d,
-          tracks: d.tracks.filter((x) => x.id !== trackId),
-          playlists: d.playlists.map((p) => ({ ...p, trackIds: p.trackIds.filter((id) => id !== trackId) })),
-          positions,
-        };
-      });
+      // The position delete goes through clearPositionFast: rebuilding
+      // positions from the state copy here would roll back every tick /
+      // seek write that only exists in positionsRef so far.
+      const removed = dataRef.current.tracks.find((x) => x.id === trackId);
+      setData((d) => ({
+        ...d,
+        tracks: d.tracks.filter((x) => x.id !== trackId),
+        playlists: d.playlists.map((p) => ({ ...p, trackIds: p.trackIds.filter((id) => id !== trackId) })),
+      }));
+      if (removed) clearPositionFast(removed.path);
       trackRemovedRef.current(trackId);
     },
     clearLibrary: () => {
-      setData((d) => ({ ...d, tracks: [], playlists: d.playlists.map((p) => ({ ...p, trackIds: [] })), positions: {} }));
+      setData((d) => ({ ...d, tracks: [], playlists: d.playlists.map((p) => ({ ...p, trackIds: [] })) }));
+      resetPositionsFast();
       stopPlaybackRef.current();
     },
     createPlaylist: (name) => {
@@ -196,19 +262,14 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     clearAllData: () => {
       clearLibraryStorage();
       const fresh = loadLibrary();
+      positionsRef.current = fresh.positions;
       dataRef.current = fresh;
       setDataState(fresh);
       stopPlaybackRef.current();
     },
-    savePosition: (path, ms) =>
-      setData((d) => ({ ...d, positions: { ...d.positions, [canonicalize(path)]: Math.floor(ms) } })),
-    clearPosition: (path) =>
-      setData((d) => {
-        const positions = { ...d.positions };
-        delete positions[canonicalize(path)];
-        return { ...d, positions };
-      }),
-  }), [data, tracksById, t, locale, setData]);
+    savePosition: savePositionFast,
+    clearPosition: clearPositionFast,
+  }), [data, tracksById, t, locale, setData, savePositionFast, clearPositionFast, resetPositionsFast]);
 
   const libraryRef = useRef(library);
   libraryRef.current = library;
@@ -304,7 +365,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   const playTrack = useCallback(async (track: Track, q: Track[], opts?: { fromUserTap?: boolean }) => {
     const settings = dataRef.current.settings;
-    const saved = dataRef.current.positions[canonicalize(track.path)] ?? 0;
+    const saved = positionsRef.current[canonicalize(track.path)] ?? 0;
     const hasProgress = saved > 5_000 && (track.durationMs === 0 || saved < track.durationMs - 5_000);
     if (opts?.fromUserTap && hasProgress && settings.autoResume && settings.resumePlaybackOnTrackTap) {
       setResumePrompt({ track, positionMs: saved, queue: q });
@@ -342,8 +403,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           const pos = e.positionMs ?? positionMsRef.current;
           const dur = e.durationMs && e.durationMs > 0 ? e.durationMs : cur.durationMs;
           positionMsRef.current = pos;
-          setPositionMs(pos);
-          setDurationMs(dur);
+          setPositionMs((prev) => (prev === pos ? prev : pos));
+          setDurationMs((prev) => (prev === dur ? prev : dur));
           const now = Date.now();
           if (now - lastSaveRef.current > 5_000) {
             lastSaveRef.current = now;
@@ -433,6 +494,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       if (cur && endedTrackRef.current !== cur.id) {
         libraryRef.current.savePosition(cur.path, positionMsRef.current);
       }
+      // The page may be gone before the debounce fires — flush now.
+      flushPersistRef.current();
     };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") saveNow();
@@ -481,7 +544,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, [sleepTimer]);
 
   const player = useMemo<PlayerCtx>(() => ({
-    current, queue, playing, positionMs, durationMs, volume, speed,
+    current, queue, playing, volume, speed,
     sleepTimer, sleepRemainingMs, resumePrompt,
     playTrack,
     togglePlay: () => {
@@ -539,7 +602,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       });
     },
     dismissResume: () => setResumePrompt(null),
-  }), [current, queue, playing, positionMs, durationMs, volume, speed, sleepTimer, sleepRemainingMs, resumePrompt, playTrack, step, startPlayback]);
+  }), [current, queue, playing, volume, speed, sleepTimer, sleepRemainingMs, resumePrompt, playTrack, step, startPlayback]);
 
   playerRef.current = player;
 
@@ -570,9 +633,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     msRef.current?.setPlaybackState(state);
   }, [current, playing]);
 
+  const progress = useMemo<ProgressCtx>(() => ({ positionMs, durationMs }), [positionMs, durationMs]);
+
   return (
     <LibraryContext.Provider value={library}>
-      <PlayerContext.Provider value={player}>{children}</PlayerContext.Provider>
+      <PlayerContext.Provider value={player}>
+        <ProgressContext.Provider value={progress}>{children}</ProgressContext.Provider>
+      </PlayerContext.Provider>
     </LibraryContext.Provider>
   );
 }

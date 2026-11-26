@@ -11,7 +11,7 @@ import { formatSpeed, quantizeSpeed, SPEED_PRESETS } from "../utils/playbackSpee
 import { volumeToPercentage } from "../utils/volume";
 import { useArtworkAmbient } from "../utils/artworkColor";
 import { tap } from "../utils/haptics";
-import { useLibrary, usePlayer } from "../store";
+import { useLibrary, usePlayer, useProgress } from "../store";
 import styles from "./PlayerScreen.module.css";
 
 /** Original VolumeSlider icon logic: off / mute / down / up by level. */
@@ -237,19 +237,20 @@ function SleepTimerDialog({ onClose }: { onClose: () => void }) {
 function JumpToTimeDialog({ onClose }: { onClose: () => void }) {
   const { t } = useLibrary();
   const player = usePlayer();
-  const initSec = Math.floor(player.positionMs / 1000);
+  const progress = useProgress();
+  const initSec = Math.floor(progress.positionMs / 1000);
   const [h, setH] = useState(Math.floor(initSec / 3600));
   const [m, setM] = useState(Math.floor((initSec % 3600) / 60));
   const [s, setS] = useState(initSec % 60);
-  const maxH = Math.floor(player.durationMs / 3_600_000);
+  const maxH = Math.floor(progress.durationMs / 3_600_000);
   const selectedMs = ((h * 60 + m) * 60 + s) * 1000;
-  const valid = selectedMs <= player.durationMs;
+  const valid = selectedMs <= progress.durationMs;
 
   return (
     <Dialog title={t("jumpToTimeTitle")} onClose={onClose} centered bare radius="r12" tone="elevated" pad32>
       <div>
         <div className={styles.jumpTitle}>{t("jumpToTimeTitle")}</div>
-        <div className={styles.jumpSub}>{t("totalDuration", { duration: formatTime(player.durationMs) })}</div>
+        <div className={styles.jumpSub}>{t("totalDuration", { duration: formatTime(progress.durationMs) })}</div>
       </div>
       <div className={styles.wheels}>
         <Wheel value={h} max={Math.max(0, maxH)} label={t("hourLabel")} onChange={setH} />
@@ -312,6 +313,7 @@ function SpeedDialog({ onClose }: { onClose: () => void }) {
 export function PlayerScreen({ goBack }: { goBack: () => void }) {
   const { t, data } = useLibrary();
   const player = usePlayer();
+  const progress = useProgress();
   const [showSleep, setShowSleep] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const [showSpeed, setShowSpeed] = useState(false);
@@ -319,6 +321,14 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
   // engine ticks keep reporting the pre-seek position until the seek
   // lands, and letting them drive the input makes the thumb fight back.
   const [scrub, setScrub] = useState<number | null>(null);
+  /* Dragging used to call player.seek() on every input event — each one
+     an IPC round trip plus a position save. The drag now only moves the
+     local thumb; the seek is committed once, when the drag ends. */
+  const commitScrub = () => {
+    if (scrub === null) return;
+    player.seek(scrub);
+    setScrub(null);
+  };
   const [, forceTick] = useState(0);
   const lastVolumeRef = useRef(1);
 
@@ -414,17 +424,16 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
             className={`${forms.rangeProgress} ${styles.seekInput}`}
             type="range"
             min={0}
-            max={Math.max(1, player.durationMs)}
-            value={scrub ?? Math.min(player.positionMs, player.durationMs || player.positionMs)}
-            style={{ ...fillStyle(scrub ?? player.positionMs, 0, Math.max(1, player.durationMs)) }}
+            max={Math.max(1, progress.durationMs)}
+            value={scrub ?? Math.min(progress.positionMs, progress.durationMs || progress.positionMs)}
+            style={{ ...fillStyle(scrub ?? progress.positionMs, 0, Math.max(1, progress.durationMs)) }}
             onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              setScrub(v);
-              player.seek(v);
+              setScrub(parseFloat(e.target.value));
             }}
-            onPointerUp={() => setScrub(null)}
-            onPointerCancel={() => setScrub(null)}
-            onBlur={() => setScrub(null)}
+            onPointerUp={commitScrub}
+            onPointerCancel={commitScrub}
+            onKeyUp={commitScrub}
+            onBlur={commitScrub}
             aria-label="seek"
           />
           <button className={styles.jumpBtn} onClick={() => setShowJump(true)} aria-label={t("jumpToTime")}>
@@ -437,8 +446,8 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
           </button>
         </div>
         <div className={styles.timeLabels}>
-          <span>{formatTime(scrub ?? player.positionMs)}</span>
-          <span>{formatTime(player.durationMs)}</span>
+          <span>{formatTime(scrub ?? progress.positionMs)}</span>
+          <span>{formatTime(progress.durationMs)}</span>
         </div>
 
         <div className={styles.controls}>
