@@ -2,7 +2,7 @@
    tokens.css; component styling lives in co-located CSS Modules. */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow-x: hidden; overflow-x: clip; }
+body { margin: 0; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow-x: hidden; overflow-x: clip; overscroll-behavior: none; }
 button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
 input, select { font: inherit; }
 ::-webkit-scrollbar { width: 0; height: 0; }

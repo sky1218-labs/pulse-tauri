@@ -18,6 +18,66 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
+}
+
+/* Navigation layers. The entering screen and the exiting screen animate
+   simultaneously (a stack, not a swap). Only transform/opacity move, on
+   the wrapper — the scrolling content inside is never transformed, so
+   the compositor can slide the whole layer without repainting it.
+   Distances are deliberately short (Android-style): enough to read as
+   travel, small enough to stay at 60fps on a WebView. */
+.screenLayer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.layerExiting {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.layerEnter { will-change: transform, opacity; }
+.layerExit { will-change: transform, opacity; }
+
+.layerEnter.dirPush { animation: enterPush var(--motion-medium) var(--ease-out) both; }
+.layerEnter.dirPop { animation: enterPop var(--motion-medium) var(--ease-out) both; }
+.layerEnter.dirPresent { animation: enterPresent var(--motion-medium) var(--ease-sheet) both; }
+.layerEnter.dirDismiss { animation: enterUnder var(--motion-medium) var(--ease-out) both; }
+.layerExit.dirPush { animation: exitPush var(--motion-medium) var(--ease-out) both; }
+.layerExit.dirPop { animation: exitPop var(--motion-medium) var(--ease-out) both; }
+.layerExit.dirPresent { animation: exitPush var(--motion-medium) var(--ease-out) both; }
+.layerExit.dirDismiss { animation: exitDismiss var(--motion-medium) var(--ease-sheet) both; }
+
+@keyframes enterPush {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes enterPop {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes enterPresent {
+  from { opacity: 0.4; transform: translateY(56px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes enterUnder {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes exitPush {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-16px); }
+}
+@keyframes exitPop {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(32px); }
+}
+@keyframes exitDismiss {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0.4; transform: translateY(56px); }
 }
 
 /* Resume prompt — in-flow shell row above the mini player (the old fixed

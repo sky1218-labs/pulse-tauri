@@ -11,11 +11,10 @@
   display: flex;
   flex-direction: column;
   padding: 0 var(--sp-lg) calc(var(--sp-md) + var(--inset-bottom));
-  animation: screenIn var(--motion-medium) var(--ease-out);
-}
-@keyframes screenIn {
-  from { opacity: 0; transform: translateX(28px); }
-  to { opacity: 1; transform: translateX(0); }
+  /* Navigation motion lives on the shell's layer wrapper (App.module.css),
+     never on the scrolling element itself, and scroll never chains to a
+     page behind it — both are web-feel tells. */
+  overscroll-behavior: contain;
 }
 .pad16 { padding-left: var(--sp-md); padding-right: var(--sp-md); }
 

@@ -10,6 +10,11 @@ From 0.1.11 on, updates are compatibility-first:
 
 ## Unreleased — performance pass
 
+Navigation now moves like an app stack, not a page swap:
+
+- Screen changes are two-layer transitions: the outgoing and incoming screens animate at the same time, and the motion follows the direction of travel — pushes come in from the right while the old screen parallaxes out left, back navigation reverses it, and the player presents from the bottom and dismisses back down (previously every screen, forwards or backwards, slid in from the same +28px with nothing leaving)
+- The animation runs on the shell's layer wrapper (transform/opacity only), never on the scrolling element itself, and scroll no longer chains past the top/bottom of a screen
+
 Fixes the "doesn't feel like a native app" jank reported on 0.2.1. Storage schema, package id and signing key unchanged — all user data carries over.
 
 - Playback progress no longer re-renders the app: position/duration moved out of the player context into a dedicated progress context, so the twice-a-second tick only updates the mini-player bar and the player screen. Track rows are memoized and skip off-screen layout/paint (`content-visibility`)
