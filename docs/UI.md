@@ -33,7 +33,7 @@ Rules: accent only for play / now-playing / primary actions. Never Spotify green
 
 ## The one-glass rule
 
-- Exactly one `backdrop-filter` surface exists: the mini player (`src/ui/composites/MiniPlayer.module.css`) — floating pill, radius 20, `blur(20px) saturate(1.4)`, 1px top border `rgba(255,255,255,0.08)`
+- Exactly one `backdrop-filter` surface exists: the mini player (`src/ui/composites/MiniPlayer.module.css`) — floating pill, radius 20, `blur(12px) saturate(1.25)`, 1px top border `rgba(255,255,255,0.08)`
 - No other component may use `backdrop-filter` — blur re-computes per scroll frame and multiplies with every layer
 - Without backdrop-filter support the pill falls back to an opaque fill (`--glass-fallback`), via `@supports not (backdrop-filter: blur(1px))`
 
@@ -92,3 +92,31 @@ Rules: accent only for play / now-playing / primary actions. Never Spotify green
 | Android back = in-app navigation | `window.__pulseBack` (src/utils/backNav.ts): topmost dialog → previous screen → exit at root |
 | Mini player never moves | Mounted once at shell level, hidden (not unmounted) on the player screen; `.screenRegion` holds the layout slot while lazy screens load |
 | System media controls are native on Android | `tauri-plugin-mediasession`: ExoPlayer inside a Media3 MediaSessionService owns playback + media notification; Web Media Session is the non-Android fallback |
+
+## Motion & navigation
+
+Motion follows the app-stack model, not page swaps. The system lives in
+the shell (`src/App.tsx`) and `src/App.module.css`; screens never animate
+themselves.
+
+- **Two layers, simultaneously:** on navigation the outgoing screen stays
+  mounted on an exiting layer while the incoming screen enters above it;
+  the exiting layer unmounts after the transition (320 ms).
+- **Direction-aware:** push = incoming from `translateX(32px)`, outgoing
+  parallaxes to `-16px` and fades; pop reverses (in from `-24px`, out to
+  `+32px`). Forwards and backwards must never look the same.
+- **Player presents:** the Now Playing screen enters from
+  `translateY(56px)` with `--ease-sheet` and dismisses back down; the
+  screen underneath fades in from `-16px`.
+- **Duration:** all navigation uses `--motion-medium` (280 ms). Distances
+  are deliberately short — enough to read as travel, small enough to
+  hold 60 fps in a WebView.
+- **Compositor only:** layers animate `transform`/`opacity` with
+  `will-change` on the wrapper. The scrolling element (`.screen`) is
+  never transformed and carries no enter animation.
+- **Progress without width:** the mini-player progress bar is a
+  full-width track scaled with `transform: scaleX()` — never animate
+  `width` (layout) per tick.
+- **No web tells:** screens use `overscroll-behavior: contain`, the body
+  `overscroll-behavior: none`; list rows use `content-visibility: auto`
+  so off-screen rows are not painted during scroll or transitions.
