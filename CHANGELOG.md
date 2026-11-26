@@ -8,7 +8,9 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
-## Unreleased — performance pass
+## 0.2.2 — 2026-11-26
+
+Performance and app-feel release. Storage schema, package id and signing key unchanged — all user data carries over, updates install in place over 0.2.1.
 
 Navigation now moves like an app stack, not a page swap:
 
