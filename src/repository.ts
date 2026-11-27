@@ -1,5 +1,6 @@
 import type { Track, Playlist } from "./utils/playlist";
 import type { LocaleCode } from "./i18n";
+import type { SortKey, SortDir } from "./utils/sortTracks";
 
 /** Mirrors the original Flutter `Settings` entity defaults (lib/domain/entities/settings.dart). */
 export interface Settings {
@@ -16,6 +17,9 @@ export interface Settings {
   sleepTimerFadeOutSeconds: number;
   navigateToPlayerOnResume: boolean;
   autoUpdateEnabled: boolean;
+  /** Library list sort (Home). Persisted with the rest of the settings. */
+  librarySortKey: SortKey;
+  librarySortDir: SortDir;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -31,6 +35,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sleepTimerFadeOutEnabled: true,
   sleepTimerFadeOutSeconds: 5,
   navigateToPlayerOnResume: false,
+  librarySortKey: "title",
+  librarySortDir: "asc",
   autoUpdateEnabled: true,
 };
 

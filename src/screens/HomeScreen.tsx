@@ -7,6 +7,7 @@ import layout from "../styles/layout.module.css";
 import type { Track } from "../utils/playlist";
 import { displayTitle } from "../utils/playlist";
 import { useLibrary, usePlayer } from "../store";
+import { sortTracks, SORT_KEYS, SORT_DEFAULT_DIR, type SortKey } from "../utils/sortTracks";
 import styles from "./HomeScreen.module.css";
 
 /* Screens unmount on navigation, so without this the library list jumped
@@ -18,21 +19,28 @@ let savedHomeScrollTop = 0;
 export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
   goScanner: () => void; goPlaylists: () => void; goSettings: () => void;
 }) {
-  const { data, t, addToPlaylist, removeTrackFromLibrary, clearLibrary } = useLibrary();
+  const { data, t, addToPlaylist, removeTrackFromLibrary, clearLibrary, updateSettings } = useLibrary();
   const player = usePlayer();
   const [query, setQuery] = useState("");
   const [menuTrack, setMenuTrack] = useState<Track | null>(null);
   const [pickPlaylistFor, setPickPlaylistFor] = useState<Track | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showHomeMenu, setShowHomeMenu] = useState(false);
+  const [showSort, setShowSort] = useState(false);
   const [confirmClearLibrary, setConfirmClearLibrary] = useState(false);
 
+  const sortChoice = { key: data.settings.librarySortKey, dir: data.settings.librarySortDir };
   const tracks = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return data.tracks;
-    return data.tracks.filter((tr) =>
-      [tr.title, tr.artist ?? "", tr.album ?? ""].some((f) => f.toLowerCase().includes(q)));
-  }, [data.tracks, query]);
+    const filtered = !q
+      ? data.tracks
+      : data.tracks.filter((tr) =>
+          [tr.title, tr.artist ?? "", tr.album ?? ""].some((f) => f.toLowerCase().includes(q)));
+    // The sorted list is also the playback queue (TrackRow gets
+    // queue={tracks}), so what you see is the order you hear.
+    return sortTracks(filtered, sortChoice, data.settings.locale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.tracks, query, data.settings.librarySortKey, data.settings.librarySortDir, data.settings.locale]);
 
   /* Recently added — derived from the existing Track.addedAt stamps
      (no new persisted fields); shown only when enough tracks carry one. */
@@ -129,7 +137,14 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
         </div>
       ) : (
         <>
-          <div className={styles.listCount}>{query ? `${t("results")} · ${tracks.length}` : `${tracks.length}`}</div>
+          <div className={styles.listHead}>
+            <div className={styles.listCount}>{query ? `${t("results")} · ${tracks.length}` : `${tracks.length}`}</div>
+            <button className={styles.sortBtn} onClick={() => setShowSort(true)} aria-label={t("sortBy")}>
+              <Icon name="sort" />
+              <span>{t(`sort${sortChoice.key.charAt(0).toUpperCase()}${sortChoice.key.slice(1)}` as "sortTitle")}</span>
+              <Icon name={sortChoice.dir === "asc" ? "up" : "down"} />
+            </button>
+          </div>
           <div className={styles.rowBleed}>
           {tracks.map((tr) => (
             <TrackRow key={tr.id} track={tr} queue={tracks} onMenu={setMenuTrack} />
@@ -166,6 +181,44 @@ export function HomeScreen({ goScanner, goPlaylists, goSettings }: {
               ))}
             </div>
           )}
+        </Dialog>
+      ) : null}
+
+      {showSort ? (
+        <Dialog title={t("sortBy")} onClose={() => setShowSort(false)}>
+          <div>
+            {SORT_KEYS.map((key) => (
+              <button
+                key={key}
+                className={btn.menuItem}
+                onClick={() => {
+                  if (key === sortChoice.key) {
+                    updateSettings({ librarySortDir: sortChoice.dir === "asc" ? "desc" : "asc" });
+                  } else {
+                    updateSettings({ librarySortKey: key, librarySortDir: SORT_DEFAULT_DIR[key] });
+                  }
+                  setShowSort(false);
+                }}
+              >
+                <span className={styles.sortLabel}>{t(`sort${key.charAt(0).toUpperCase()}${key.slice(1)}` as "sortTitle")}</span>
+                {key === sortChoice.key ? <Icon name="check" /> : null}
+              </button>
+            ))}
+            <div className={styles.sortDirRow}>
+              <button
+                className={`${btn.btn} ${sortChoice.dir === "asc" ? btn.btnPrimary : btn.btnSecondary} ${styles.sortDirBtn}`}
+                onClick={() => updateSettings({ librarySortDir: "asc" })}
+              >
+                <Icon name="up" /> {t("sortAscending")}
+              </button>
+              <button
+                className={`${btn.btn} ${sortChoice.dir === "desc" ? btn.btnPrimary : btn.btnSecondary} ${styles.sortDirBtn}`}
+                onClick={() => updateSettings({ librarySortDir: "desc" })}
+              >
+                <Icon name="down" /> {t("sortDescending")}
+              </button>
+            </div>
+          </div>
         </Dialog>
       ) : null}
 

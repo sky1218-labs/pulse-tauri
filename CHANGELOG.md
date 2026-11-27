@@ -8,6 +8,10 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## Unreleased
+
+- **Library sorting:** the Home track list can now be sorted by title, artist, album, date added, duration or file name, ascending or descending. The choice is persisted in settings, the sort button in the list header shows the current order, and the playback queue follows the visible order. Comparators use locale-aware natural ordering ("Track 2" before "Track 10") with artist/album/title tie-breakers. Previously the list was always in raw scan order
+
 ## 0.2.4 — 2026-11-27
 
 Sleep timer hardening on top of 0.2.3. Storage schema, package id and signing key unchanged — updates install in place, all user data carries over.

@@ -61,8 +61,33 @@ button.clearBtn { width: 28px; height: 28px; }
   color: var(--text-hint);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
   margin: var(--sp-md) 0 var(--sp-sm);
 }
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--radius-pill);
+  background: var(--interactive);
+}
+.sortBtn svg { width: 16px; height: 16px; }
+.sortBtn:active { transform: scale(0.96); }
+
+.sortLabel { flex: 1; text-align: left; }
+.sortDirRow { display: flex; gap: var(--sp-sm); margin-top: var(--sp-md); }
+.sortDirBtn { flex: 1; }
 
 /* Rows bleed 12px past the screen padding so the highlight is wider
    than the text inset (the pre-0.2.0 negative-margin row trick). */
