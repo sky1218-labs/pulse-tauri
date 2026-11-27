@@ -30,5 +30,12 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!-- Backup alarm for the sleep-timer deadline: wakes the process
+             so PlaybackStore can re-check/fire the deadline even if the
+             service was throttled. Explicit intents only, not exported. -->
+        <receiver
+            android:name=".SleepTimerAlarmReceiver"
+            android:exported="false" />
     </application>
 </manifest>

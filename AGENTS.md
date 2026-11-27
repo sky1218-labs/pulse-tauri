@@ -75,8 +75,9 @@ ExoPlayer/MediaSession plugin for native playback. No accounts, no cloud.
    JS timers when the app backgrounds / the screen turns off, while the
    native player keeps playing. The sleep-timer deadline is the example:
    it is armed via `set_sleep_timer`, enforced (with its fade-out) by
-   the Kotlin service, and persisted on both sides so a process restart
-   re-arms it. The WebView only mirrors the countdown.
+   the Kotlin service, backed by an AlarmManager alarm in case the
+   process is throttled or killed, and persisted on both sides so a
+   process restart re-arms it. The WebView only mirrors the countdown.
 
 ## UI & motion rules (hard)
 

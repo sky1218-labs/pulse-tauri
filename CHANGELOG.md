@@ -8,6 +8,12 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 0.2.4 — 2026-11-27
+
+Sleep timer hardening on top of 0.2.3. Storage schema, package id and signing key unchanged — updates install in place, all user data carries over.
+
+- The natively enforced sleep deadline (0.2.3) is now backed by an **AlarmManager alarm** in addition to the playback service's own schedule: if the process is throttled or killed before the deadline, the alarm wakes it and the deadline is re-checked and fired. Exact-and-allow-while-idle is used where the platform permits it, degrading to the inexact allow-while-idle variant rather than prompting for an exact-alarm permission. A stale alarm left by a dead process is cancelled when an expired deadline is dropped on restart
+
 ## 0.2.3 — 2026-11-27
 
 Sleep timer fix. Storage schema, package id and signing key unchanged — updates install in place over 0.2.2, all user data carries over.

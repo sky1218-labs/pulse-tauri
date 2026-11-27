@@ -1,6 +1,10 @@
 package dev.pulse.tauri.mediasession
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -98,6 +102,9 @@ object PlaybackStore {
     private const val KEY_SLEEP_DEADLINE = "sleep_deadline_ms"
     private const val KEY_SLEEP_FADE = "sleep_fade_seconds"
 
+    const val SLEEP_TIMER_ACTION = "dev.pulse.tauri.mediasession.SLEEP_TIMER_FIRE"
+    private const val SLEEP_ALARM_REQUEST = 7331
+
     @Volatile
     private var appContext: Context? = null
 
@@ -162,6 +169,7 @@ object PlaybackStore {
             } else if (deadline > 0L) {
                 sleepDeadlineMs = 0L
                 persistSleepTimer()
+                updateSleepAlarmAfterClear()
             }
         } catch (t: Throwable) {
             Log.e(TAG, "restore sleep timer failed", t)
@@ -180,8 +188,90 @@ object PlaybackStore {
         sleepFadeRunnable = null
     }
 
+    /**
+     * Keep the AlarmManager backup in sync with the armed deadline. The
+     * Handler schedule is precise while the service lives (it holds a
+     * wake lock while playing), but if the process is throttled or killed
+     * the alarm is what guarantees the deadline is re-checked at all.
+     * Exact-and-allow-while-idle where the platform permits it, otherwise
+     * the inexact allow-while-idle variant (no SCHEDULE_EXACT_ALARM
+     * prompt — a sleep timer must never nag for a permission).
+     */
+    private fun updateSleepAlarm() {
+        try {
+            val ctx = appContext ?: return
+            val alarm = ctx.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val intent = Intent(ctx, SleepTimerAlarmReceiver::class.java).setAction(SLEEP_TIMER_ACTION)
+            val pending = PendingIntent.getBroadcast(
+                ctx, SLEEP_ALARM_REQUEST, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val deadline = sleepDeadlineMs
+            if (deadline <= 0L) {
+                alarm.cancel(pending)
+                return
+            }
+            val exactAllowed = Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()
+            if (Build.VERSION.SDK_INT >= 23 && exactAllowed) {
+                alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, deadline, pending)
+            } else if (Build.VERSION.SDK_INT >= 23) {
+                alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, deadline, pending)
+            } else {
+                alarm.setExact(AlarmManager.RTC_WAKEUP, deadline, pending)
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "update sleep alarm failed", t)
+        }
+    }
+
+    private fun updateSleepAlarmAfterClear() {
+        try {
+            val ctx = appContext ?: return
+            val alarm = ctx.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val intent = Intent(ctx, SleepTimerAlarmReceiver::class.java).setAction(SLEEP_TIMER_ACTION)
+            val pending = PendingIntent.getBroadcast(
+                ctx, SLEEP_ALARM_REQUEST, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarm.cancel(pending)
+        } catch (t: Throwable) {
+            Log.e(TAG, "cancel sleep alarm failed", t)
+        }
+    }
+
+    /** Alarm fired: pause if the deadline has (really) been reached. */
+    fun onSleepAlarmFired(context: Context) {
+        setAppContext(context)
+        mainHandler.post {
+            // The alarm can be what woke a fresh process: the in-memory
+            // deadline is then still empty, so fall back to the persisted
+            // one before deciding anything.
+            if (sleepDeadlineMs <= 0L) {
+                try {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    val persisted = prefs.getLong(KEY_SLEEP_DEADLINE, 0L)
+                    if (persisted > 0L) {
+                        sleepDeadlineMs = persisted
+                        sleepFadeSeconds = prefs.getInt(KEY_SLEEP_FADE, 0)
+                    }
+                } catch (t: Throwable) {
+                    Log.e(TAG, "alarm fired: read persisted deadline failed", t)
+                }
+            }
+            val deadline = sleepDeadlineMs
+            if (deadline <= 0L) return@post
+            if (System.currentTimeMillis() >= deadline - 500L) {
+                fireSleepTimer()
+            } else {
+                // Clock moved; rebuild both schedules for the real remainder.
+                scheduleSleepTimer()
+            }
+        }
+    }
+
     /** (Re)build the Handler schedule for the current deadline. Main thread. */
     private fun scheduleSleepTimer() {
+        updateSleepAlarm()
         cancelSleepRunnables()
         // Re-arming or cancelling ends any in-progress fade: restore volume.
         sleepFadeBaseVolume?.let { base ->
@@ -238,6 +328,7 @@ object PlaybackStore {
 
     /** Deadline reached: pause, restore the pre-fade volume, disarm. Main thread. */
     private fun fireSleepTimer() {
+        updateSleepAlarmAfterClear()
         cancelSleepRunnables()
         val base = sleepFadeBaseVolume
         sleepFadeBaseVolume = null
