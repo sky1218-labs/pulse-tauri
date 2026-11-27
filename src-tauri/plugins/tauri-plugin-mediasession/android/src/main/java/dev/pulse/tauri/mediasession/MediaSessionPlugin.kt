@@ -247,7 +247,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
     fun setRepeatMode(invoke: Invoke) {
         try {
             val args = invoke.parseArgs(SetRepeatModeArgs::class.java)
-            PlaybackStore.setRepeatModePref(args.mode)
+            PlaybackStore.updateRepeatModePref(args.mode)
             invoke.resolve()
         } catch (t: Throwable) {
             invoke.reject(t.message ?: "setRepeatMode failed")
@@ -258,7 +258,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
     fun setShuffle(invoke: Invoke) {
         try {
             val args = invoke.parseArgs(SetShuffleArgs::class.java)
-            PlaybackStore.setShufflePref(args.enabled)
+            PlaybackStore.updateShufflePref(args.enabled)
             invoke.resolve()
         } catch (t: Throwable) {
             invoke.reject(t.message ?: "setShuffle failed")

@@ -474,7 +474,7 @@ object PlaybackStore {
 
     /** The setRepeatMode command: remember the preference and apply it now
      *  (unless the sleep timer's stop-at-track-end override is active). */
-    fun setRepeatModePref(mode: String) {
+    fun updateRepeatModePref(mode: String) {
         repeatModePref = mode
         withPlayer { p ->
             if (!stopAtTrackEnd) p.repeatMode = repeatModeConstant()
@@ -482,7 +482,7 @@ object PlaybackStore {
     }
 
     /** The setShuffle command. */
-    fun setShufflePref(enabled: Boolean) {
+    fun updateShufflePref(enabled: Boolean) {
         shufflePref = enabled
         withPlayer { p -> p.shuffleModeEnabled = enabled }
     }
