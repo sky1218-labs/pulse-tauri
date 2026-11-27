@@ -471,3 +471,53 @@ describe("createPlaybackEngine", () => {
     expect(engine.kind).toBe("web");
   });
 });
+
+describe("WebAudioEngine repeat/shuffle modes", () => {
+  it("repeat one replays the same track on ended", async () => {
+    const { audio, engine, events } = makeWebEngine();
+    engine.setRepeatMode("one");
+    engine.setQueue([itemA, itemB], 0, 0, true);
+    await completeLoad(audio, 100);
+    audio.currentTime = 42;
+    audio.finishTrack();
+    await flush();
+    expect(events.some((e) => e.type === "transition")).toBe(false);
+    expect(audio.currentTime).toBe(0);
+    expect(audio.play).toHaveBeenCalled();
+  });
+
+  it("repeat off emits ended at the last track instead of wrapping", async () => {
+    const { audio, engine, events } = makeWebEngine();
+    engine.setRepeatMode("off");
+    engine.setQueue([itemA, itemB], 1, 0, true);
+    await completeLoad(audio, 100);
+    audio.finishTrack();
+    await flush();
+    expect(events.some((e) => e.type === "ended" && e.currentId === itemB.id)).toBe(true);
+  });
+
+  it("repeat off still advances mid-queue", async () => {
+    const { audio, engine, events } = makeWebEngine();
+    engine.setRepeatMode("off");
+    engine.setQueue([itemA, itemB], 0, 0, true);
+    await completeLoad(audio, 100);
+    audio.finishTrack();
+    await flush();
+    expect(events.some((e) => e.type === "transition" && e.currentId === itemB.id)).toBe(true);
+  });
+
+  it("native engine forwards repeat/shuffle commands", async () => {
+    const calls: { cmd: string; args?: Record<string, unknown> }[] = [];
+    const engine = createPlaybackEngine({
+      android: true,
+      invoke: async (cmd, args) => { calls.push({ cmd, args }); return {}; },
+      addListener: async () => ({ unregister: async () => undefined }),
+    });
+    (engine as NativeAudioEngine).setRepeatMode("one");
+    (engine as NativeAudioEngine).setShuffle(true);
+    await flush();
+    const cmds = calls.map((c) => c.cmd);
+    expect(cmds).toContain("plugin:mediasession|set_repeat_mode");
+    expect(cmds).toContain("plugin:mediasession|set_shuffle");
+  });
+});

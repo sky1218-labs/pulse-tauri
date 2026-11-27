@@ -81,6 +81,22 @@ pub async fn set_stop_at_track_end<R: Runtime>(
 }
 
 #[command]
+pub async fn set_repeat_mode<R: Runtime>(
+    app: AppHandle<R>,
+    payload: SetRepeatModePayload,
+) -> Result<()> {
+    app.mediasession().set_repeat_mode(payload)
+}
+
+#[command]
+pub async fn set_shuffle<R: Runtime>(
+    app: AppHandle<R>,
+    payload: SetShufflePayload,
+) -> Result<()> {
+    app.mediasession().set_shuffle(payload)
+}
+
+#[command]
 pub async fn set_sleep_timer<R: Runtime>(
     app: AppHandle<R>,
     payload: SetSleepTimerPayload,

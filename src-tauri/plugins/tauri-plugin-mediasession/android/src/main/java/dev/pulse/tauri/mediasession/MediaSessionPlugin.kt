@@ -63,6 +63,17 @@ class SetStopAtTrackEndArgs {
 }
 
 @InvokeArg
+class SetRepeatModeArgs {
+    /** "off" | "all" | "one" */
+    var mode: String = "all"
+}
+
+@InvokeArg
+class SetShuffleArgs {
+    var enabled: Boolean = false
+}
+
+@InvokeArg
 class SetSleepTimerArgs {
     /** Epoch ms when playback must stop; 0 cancels the timer. */
     var deadlineMs: Long = 0
@@ -229,6 +240,28 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.resolve()
         } catch (t: Throwable) {
             invoke.reject(t.message ?: "setStopAtTrackEnd failed")
+        }
+    }
+
+    @Command
+    fun setRepeatMode(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(SetRepeatModeArgs::class.java)
+            PlaybackStore.setRepeatModePref(args.mode)
+            invoke.resolve()
+        } catch (t: Throwable) {
+            invoke.reject(t.message ?: "setRepeatMode failed")
+        }
+    }
+
+    @Command
+    fun setShuffle(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(SetShuffleArgs::class.java)
+            PlaybackStore.setShufflePref(args.enabled)
+            invoke.resolve()
+        } catch (t: Throwable) {
+            invoke.reject(t.message ?: "setShuffle failed")
         }
     }
 

@@ -141,3 +141,28 @@ button.clearBtn { width: 28px; height: 28px; }
 }
 
 .pickList { display: flex; flex-direction: column; gap: var(--sp-sm); }
+
+.updateHint {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  background: var(--interactive);
+  border-radius: var(--radius-md);
+  padding: var(--sp-sm) var(--sp-mdsm);
+  margin-bottom: var(--sp-md);
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+}
+.updateHint > svg { width: 16px; height: 16px; flex: none; }
+.updateHintText { flex: 1; min-width: 0; }
+.updateHintLink { color: var(--accent); font-weight: var(--fw-semibold); text-decoration: none; flex: none; }
+button.updateHintClose { width: 28px; height: 28px; flex: none; }
+button.updateHintClose svg { width: 16px; height: 16px; }
+
+.listHeadActions { display: inline-flex; align-items: center; gap: var(--sp-sm); }
+.sortBtnActive { color: var(--accent); }
+.infoList { display: flex; flex-direction: column; gap: var(--sp-sm); }
+.infoRow { display: flex; gap: var(--sp-md); font-size: var(--fs-body); }
+.infoRow > span:first-child { color: var(--text-muted); flex: none; min-width: 64px; }
+.infoRow > span:last-child { min-width: 0; }
+.infoPath { word-break: break-all; font-size: var(--fs-caption); color: var(--text-secondary); }

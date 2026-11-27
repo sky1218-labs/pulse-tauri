@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "../ui/primitives/Icon";
 import { Dialog, ConfirmDialog } from "../ui/primitives/Dialog";
 import dialogStyles from "../ui/primitives/Dialog.module.css";
@@ -18,6 +18,18 @@ export function PlaylistsScreen({ goBack, openPlaylist }: { goBack: () => void; 
   const [renaming, setRenaming] = useState<Playlist | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Playlist | null>(null);
   const [menu, setMenu] = useState<Playlist | null>(null);
+  const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
+
+  const visiblePlaylists = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? data.playlists.filter((pl) => pl.name.toLowerCase().includes(q))
+      : [...data.playlists];
+    const collator = new Intl.Collator(data.settings.locale, { numeric: true, sensitivity: "base" });
+    return filtered.sort((a, b) =>
+      sortMode === "name" ? collator.compare(a.name, b.name) : b.updatedAt - a.updatedAt);
+  }, [data.playlists, query, sortMode, data.settings.locale]);
 
   return (
     <div className={`${layout.screen} ${layout.pad16}`}>
@@ -32,6 +44,30 @@ export function PlaylistsScreen({ goBack, openPlaylist }: { goBack: () => void; 
         </button>
       </div>
 
+      {data.playlists.length > 0 ? (
+        <div className={styles.plControls}>
+          <div className={styles.plSearch}>
+            <Icon name="search" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchHint")} />
+            {query ? (
+              <button className={btn.iconBtn} onClick={() => setQuery("")} aria-label="clear">
+                <Icon name="close" />
+              </button>
+            ) : null}
+          </div>
+          <div className={styles.plSortRow}>
+            <button
+              className={`${btn.chip}${sortMode === "recent" ? ` ${btn.chipSelected}` : ""}`}
+              onClick={() => setSortMode("recent")}
+            >{t("playlistSortRecent")}</button>
+            <button
+              className={`${btn.chip}${sortMode === "name" ? ` ${btn.chipSelected}` : ""}`}
+              onClick={() => setSortMode("name")}
+            >{t("playlistSortName")}</button>
+          </div>
+        </div>
+      ) : null}
+
       {data.playlists.length === 0 ? (
         <div className={layout.emptyState}>
           <Icon name="queue" />
@@ -41,7 +77,7 @@ export function PlaylistsScreen({ goBack, openPlaylist }: { goBack: () => void; 
         </div>
       ) : (
         <div className={styles.playlistGrid}>
-          {data.playlists.map((p) => {
+          {visiblePlaylists.map((p) => {
             const cover = p.trackIds
               .map((id) => tracksById.get(id))
               .find((tr) => tr?.artworkPath)?.artworkPath;

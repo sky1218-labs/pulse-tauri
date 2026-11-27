@@ -16,7 +16,7 @@ ExoPlayer/MediaSession plugin for native playback. No accounts, no cloud.
 - `npm run build` — `tsc --noEmit` + production build; run before pushing
 - Release: bump the version in **all three** places (`package.json`,
   `src-tauri/tauri.conf.json`, `APP_VERSION` in
-  `src/screens/SettingsScreen.tsx`), add a `CHANGELOG.md` entry, push
+  `src/utils/appVersion.ts` (re-exported by SettingsScreen)), add a `CHANGELOG.md` entry, push
   `main`, then push a `v*` tag — the Release Android workflow builds and
   publishes the APK/AAB. Never commit `src-tauri/gen/`.
 
@@ -31,7 +31,10 @@ ExoPlayer/MediaSession plugin for native playback. No accounts, no cloud.
   (known limitation; a SQLite migration must stay data-compatible).
 - `src/utils/playbackEngine.ts` — web engine (HTMLAudio, for dev/tests)
   and native engine (talks to the plugin). Native state is polled:
-  500 ms while playing, 2 s while paused.
+  500 ms while playing, 2 s while paused. Repeat/shuffle preferences
+  live in settings and are enforced by the engines (ExoPlayer modes
+  natively via `set_repeat_mode`/`set_shuffle`); the sleep timer's
+  stop-at-track-end overrides repeat while armed.
 - `src-tauri/plugins/tauri-plugin-mediasession/` — the Kotlin
   MediaSessionService + ExoPlayer. TS guest bindings, Rust command
   surface, and Kotlin `@Command`s must stay in sync when adding a command.

@@ -16,7 +16,7 @@ import { clampSpeed } from "./utils/playbackSpeed";
 import { MediaSessionController } from "./utils/mediaSession";
 import {
   createPlaybackEngine,
-  type EngineEvent, type EngineQueueItem, type PlaybackEngine,
+  type EngineEvent, type EngineQueueItem, type PlaybackEngine, type RepeatMode,
 } from "./utils/playbackEngine";
 import { tap } from "./utils/haptics";
 
@@ -38,6 +38,7 @@ interface LibraryCtx {
   setPlaylistTracks: (playlist: Playlist) => void;
   addToPlaylist: (playlistId: string, tracks: Track[]) => void;
   updateSettings: (patch: Partial<Settings>) => void;
+  toggleFavorite: (trackId: string) => void;
   resetSettings: () => void;
   clearAllData: () => void;
   savePosition: (path: string, ms: number) => void;
@@ -77,6 +78,12 @@ interface PlayerCtx {
   skipBackward: () => void;
   setVolume: (v: number) => void;
   setSpeed: (s: number) => void;
+  repeatMode: RepeatMode;
+  shuffle: boolean;
+  cycleRepeat: () => void;
+  toggleShuffle: () => void;
+  playNext: (track: Track) => void;
+  addToQueue: (track: Track) => void;
   startSleep: (durationMs: number) => void;
   stopSleep: () => void;
   answerResume: (resume: boolean) => void;
@@ -259,6 +266,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         }),
       })),
     updateSettings: (patch) => setData((d) => ({ ...d, settings: { ...d.settings, ...patch } })),
+    toggleFavorite: (trackId) =>
+      setData((d) => ({
+        ...d,
+        tracks: d.tracks.map((tr) => (tr.id === trackId ? { ...tr, favorite: !tr.favorite } : tr)),
+      })),
     resetSettings: () => setData((d) => ({ ...d, settings: { ...DEFAULT_SETTINGS, locale: d.settings.locale } })),
     clearAllData: () => {
       clearLibraryStorage();
@@ -286,6 +298,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
+  const [repeatMode, setRepeatModeState] = useState<RepeatMode>(data.settings.repeatMode);
+  const [shuffle, setShuffleState] = useState(data.settings.shuffleEnabled);
   const [volume, setVolumeState] = useState(data.settings.defaultVolume);
   const [speed, setSpeedState] = useState(data.settings.defaultPlaybackSpeed);
   const [sleepTimer, setSleepTimer] = useState<SleepTimerState | null>(null);
@@ -585,8 +599,16 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     engineRef.current!.setStopAtTrackEnd(!!sleepTimer?.endOfTrack);
   }, [sleepTimer]);
 
+  // Repeat/shuffle preferences live in settings; the engines own the
+  // actual behaviour (ExoPlayer modes natively, the onEnded/step logic
+  // in the web engine).
+  useEffect(() => {
+    engineRef.current!.setRepeatMode(repeatMode);
+    engineRef.current!.setShuffle(shuffle);
+  }, [repeatMode, shuffle]);
+
   const player = useMemo<PlayerCtx>(() => ({
-    current, queue, playing, volume, speed,
+    current, queue, playing, volume, speed, repeatMode, shuffle,
     sleepTimer, sleepRemainingMs, resumePrompt,
     playTrack,
     togglePlay: () => {
@@ -632,6 +654,40 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setSpeedState(cs);
       engineRef.current!.setSpeed(cs);
     },
+    cycleRepeat: () => {
+      tap();
+      const next: RepeatMode = repeatMode === "all" ? "one" : repeatMode === "one" ? "off" : "all";
+      setRepeatModeState(next);
+      setData((d) => ({ ...d, settings: { ...d.settings, repeatMode: next } }));
+    },
+    toggleShuffle: () => {
+      tap();
+      const next = !shuffle;
+      setShuffleState(next);
+      setData((d) => ({ ...d, settings: { ...d.settings, shuffleEnabled: next } }));
+    },
+    playNext: (track) => {
+      if (!current || queue.length === 0) {
+        void playTrack(track, [track], { fromUserTap: true });
+        return;
+      }
+      // De-duplicate first: re-queueing the same track moves it.
+      const without = queue.filter((q) => q.id !== track.id);
+      const curIdx = without.findIndex((q) => q.id === current.id);
+      const next = [...without.slice(0, curIdx + 1), track, ...without.slice(curIdx + 1)];
+      setQueue(next);
+      engineRef.current!.syncQueue(next.map(toEngineItem));
+    },
+    addToQueue: (track) => {
+      if (!current || queue.length === 0) {
+        void playTrack(track, [track], { fromUserTap: true });
+        return;
+      }
+      if (queue.some((q) => q.id === track.id)) return;
+      const next = [...queue, track];
+      setQueue(next);
+      engineRef.current!.syncQueue(next.map(toEngineItem));
+    },
     startSleep: (ms) => {
       const settings = dataRef.current.settings;
       setSleepTimer(startSleepTimer(ms, settings.sleepTimerFadeOutEnabled));
@@ -661,7 +717,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       });
     },
     dismissResume: () => setResumePrompt(null),
-  }), [current, queue, playing, volume, speed, sleepTimer, sleepRemainingMs, resumePrompt, playTrack, step, startPlayback]);
+  }), [current, queue, playing, volume, speed, repeatMode, shuffle, sleepTimer, sleepRemainingMs, resumePrompt, playTrack, step, startPlayback]);
 
   playerRef.current = player;
 

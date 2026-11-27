@@ -20,6 +20,9 @@ export interface Settings {
   /** Library list sort (Home). Persisted with the rest of the settings. */
   librarySortKey: SortKey;
   librarySortDir: SortDir;
+  /** Playback mode preferences, applied to the engine by the store. */
+  repeatMode: "off" | "all" | "one";
+  shuffleEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +40,8 @@ export const DEFAULT_SETTINGS: Settings = {
   navigateToPlayerOnResume: false,
   librarySortKey: "title",
   librarySortDir: "asc",
+  repeatMode: "all",
+  shuffleEnabled: false,
   autoUpdateEnabled: true,
 };
 

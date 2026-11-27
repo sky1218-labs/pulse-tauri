@@ -310,13 +310,44 @@ function SpeedDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+function QueueDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useLibrary();
+  const player = usePlayer();
+  return (
+    <Dialog title={`${t("queueTitle")} · ${player.queue.length}`} onClose={onClose}>
+      <div className={styles.queueList}>
+        {player.queue.map((tr) => {
+          const isCurrent = player.current?.id === tr.id;
+          return (
+            <button
+              key={tr.id}
+              className={`${styles.queueRow}${isCurrent ? ` ${styles.queueRowCurrent}` : ""}`}
+              onClick={() => { void player.playTrack(tr, player.queue, { fromUserTap: true }); onClose(); }}
+            >
+              <span className={styles.queueArt}>
+                {tr.artworkPath ? <img src={tr.artworkPath} alt="" /> : <Icon name="music" />}
+              </span>
+              <span className={styles.queueMeta}>
+                <span className={styles.queueTitleText}>{displayTitle(tr)}</span>
+                <span className={styles.queueArtist}>{tr.artist || ""}</span>
+              </span>
+              {isCurrent ? <Equalizer /> : null}
+            </button>
+          );
+        })}
+      </div>
+    </Dialog>
+  );
+}
+
 export function PlayerScreen({ goBack }: { goBack: () => void }) {
-  const { t, data } = useLibrary();
+  const { t, data, toggleFavorite } = useLibrary();
   const player = usePlayer();
   const progress = useProgress();
   const [showSleep, setShowSleep] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const [showSpeed, setShowSpeed] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
   // While the seek thumb is being dragged it shows the scrub position —
   // engine ticks keep reporting the pre-seek position until the seek
   // lands, and letting them drive the input makes the thumb fight back.
@@ -400,6 +431,9 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
   }
 
   const track = player.current;
+  // player.current is a playback snapshot; the favourite flag lives on
+  // the library copy, so read it from there or the heart won't flip.
+  const isFavorite = !!(data.tracks.find((tr) => tr.id === track.id) ?? track).favorite;
   return (
     <div className={`${layout.screen} ${styles.playerRoot}${layers.length ? ` ${styles.ambientOn}` : ""}`}>
       {layers.map((l) => (
@@ -470,6 +504,35 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
           </button>
         </div>
 
+        <div className={styles.modeRow}>
+          <button
+            className={`${styles.modeBtn}${player.shuffle ? ` ${styles.modeBtnActive}` : ""}`}
+            onClick={player.toggleShuffle}
+            aria-label={t("shuffle")}
+            aria-pressed={player.shuffle}
+          >
+            <Icon name="shuffle" />
+          </button>
+          <button
+            className={`${styles.modeBtn}${player.repeatMode !== "off" ? ` ${styles.modeBtnActive}` : ""}`}
+            onClick={player.cycleRepeat}
+            aria-label={player.repeatMode === "one" ? t("repeatOne") : player.repeatMode === "all" ? t("repeatAll") : t("repeatOff")}
+          >
+            <Icon name={player.repeatMode === "one" ? "repeatOne" : "repeat"} />
+          </button>
+          <button
+            className={styles.modeBtn}
+            onClick={() => toggleFavorite(track.id)}
+            aria-label={isFavorite ? t("removeFavorite") : t("addFavorite")}
+            aria-pressed={isFavorite}
+          >
+            <Icon name={isFavorite ? "heartFill" : "heart"} />
+          </button>
+          <button className={styles.modeBtn} onClick={() => setShowQueue(true)} aria-label={t("queueTitle")}>
+            <Icon name="queue" />
+          </button>
+        </div>
+
         <div className={styles.playerCard}>
           <div className={styles.pcRow}>
             <button className={styles.pcIconBtn} onClick={toggleMute} aria-label={t("muteToggle")}>
@@ -501,6 +564,7 @@ export function PlayerScreen({ goBack }: { goBack: () => void }) {
       {showSleep ? <SleepTimerDialog onClose={() => setShowSleep(false)} /> : null}
       {showJump ? <JumpToTimeDialog onClose={() => setShowJump(false)} /> : null}
       {showSpeed ? <SpeedDialog onClose={() => setShowSpeed(false)} /> : null}
+      {showQueue ? <QueueDialog onClose={() => setShowQueue(false)} /> : null}
     </div>
   );
 }

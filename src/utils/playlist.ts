@@ -11,6 +11,8 @@ export interface Track {
   fileSizeBytes: number;
   addedAt?: number;
   artworkPath?: string;
+  /** User-marked favourite (heart in the player / track menu). */
+  favorite?: boolean;
 }
 
 export interface Playlist {

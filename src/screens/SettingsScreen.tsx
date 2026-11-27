@@ -11,7 +11,8 @@ import { normalizeLocale, type LocaleCode } from "../i18n";
 import { compareVersions, displayVersion } from "../utils/sleepTimer";
 import { quantizeSpeed } from "../utils/playbackSpeed";
 
-export const APP_VERSION = "0.2.4";
+import { APP_VERSION } from "../utils/appVersion";
+export { APP_VERSION };
 const RELEASES_API = "https://api.github.com/repos/sky1218-labs/pulse-tauri/releases/latest";
 
 type UpdateState =
@@ -54,16 +55,35 @@ function SwitchCard({ title, desc, on, onToggle }: {
   );
 }
 
-function SliderCard({ title, valueLabel, children }: {
-  title: string; valueLabel: string; children: React.ReactNode;
+function SettingSlider({ title, value, min, max, step, format, onCommit }: {
+  title: string; value: number; min: number; max: number; step: number;
+  format: (v: number) => string; onCommit: (v: number) => void;
 }) {
+  // The drag stays local (commits once on release — settings writes
+  // serialize the whole library), but the label follows the thumb from
+  // the local draft, so what you see while dragging is what you get.
+  const [draft, setDraft] = useState<number | null>(null);
+  const shown = draft ?? value;
+  const commit = () => {
+    if (draft !== null && draft !== value) onCommit(draft);
+    setDraft(null);
+  };
   return (
     <div className={styles.setCard}>
       <div className={styles.setCardHead}>
         <div className={styles.sTitle}>{title}</div>
-        <div className={styles.sValue}>{valueLabel}</div>
+        <div className={styles.sValue}>{format(shown)}</div>
       </div>
-      {children}
+      <input
+        type="range" className={forms.rangeWhite} min={min} max={max} step={step} value={shown}
+        style={sliderStyle(shown, min, max)}
+        onChange={(e) => setDraft(parseFloat(e.target.value))}
+        onPointerUp={commit}
+        onPointerCancel={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        aria-label={title}
+      />
     </div>
   );
 }
@@ -81,36 +101,6 @@ function ActionCard({ title, desc, icon, danger, onClick, trailing }: {
       </span>
       {trailing ?? <span className={styles.chev}><Icon name="chevronRight" /></span>}
     </button>
-  );
-}
-
-/**
- * Range input that keeps the drag local and commits once on release.
- * Settings writes serialize the whole library, so committing on every
- * input event (the old behaviour) made these sliders drag through a
- * full save per step. Keyboard users commit on blur / key-up.
- */
-function CommitSlider({ value, min, max, step, ariaLabel, onCommit }: {
-  value: number; min: number; max: number; step: number;
-  ariaLabel: string; onCommit: (v: number) => void;
-}) {
-  const [draft, setDraft] = useState<number | null>(null);
-  const shown = draft ?? value;
-  const commit = () => {
-    if (draft !== null && draft !== value) onCommit(draft);
-    setDraft(null);
-  };
-  return (
-    <input
-      type="range" className={forms.rangeWhite} min={min} max={max} step={step} value={shown}
-      style={sliderStyle(shown, min, max)}
-      onChange={(e) => setDraft(parseFloat(e.target.value))}
-      onPointerUp={commit}
-      onPointerCancel={commit}
-      onKeyUp={commit}
-      onBlur={commit}
-      aria-label={ariaLabel}
-    />
   );
 }
 
@@ -183,14 +173,12 @@ export function SettingsScreen({ goBack, goScanner }: { goBack: () => void; goSc
       </div>
 
       <h3 className={styles.setSection}>{t("playback")}</h3>
-      <SliderCard title={t("defaultVolume")} valueLabel={`${Math.round(s.defaultVolume * 100)}%`}>
-        <CommitSlider value={s.defaultVolume} min={0} max={1} step={0.05} ariaLabel={t("defaultVolume")}
-          onCommit={(v) => { updateSettings({ defaultVolume: v }); player.setVolume(v); }} />
-      </SliderCard>
-      <SliderCard title={t("defaultSpeed")} valueLabel={fmtSpeed(s.defaultPlaybackSpeed)}>
-        <CommitSlider value={quantizeSpeed(s.defaultPlaybackSpeed)} min={0.5} max={2} step={0.05} ariaLabel={t("defaultSpeed")}
-          onCommit={(v) => { const q = quantizeSpeed(v); updateSettings({ defaultPlaybackSpeed: q }); player.setSpeed(q); }} />
-      </SliderCard>
+      <SettingSlider title={t("defaultVolume")} value={s.defaultVolume} min={0} max={1} step={0.05}
+        format={(v) => `${Math.round(v * 100)}%`}
+        onCommit={(v) => { updateSettings({ defaultVolume: v }); player.setVolume(v); }} />
+      <SettingSlider title={t("defaultSpeed")} value={quantizeSpeed(s.defaultPlaybackSpeed)} min={0.5} max={2} step={0.05}
+        format={(v) => fmtSpeed(quantizeSpeed(v))}
+        onCommit={(v) => { const q = quantizeSpeed(v); updateSettings({ defaultPlaybackSpeed: q }); player.setSpeed(q); }} />
       <SwitchCard title={t("autoResume")} desc={t("autoResumeDesc")} on={s.autoResume}
         onToggle={() => updateSettings({ autoResume: !s.autoResume })} />
       <SwitchCard title={t("resumePlaybackOnTrackTap")} desc={t("resumePlaybackOnTrackTapDesc")} on={s.resumePlaybackOnTrackTap}
@@ -199,14 +187,12 @@ export function SettingsScreen({ goBack, goScanner }: { goBack: () => void; goSc
         onToggle={() => updateSettings({ navigateToPlayerOnResume: !s.navigateToPlayerOnResume })} />
 
       <h3 className={styles.setSection}>{t("skipSettings")}</h3>
-      <SliderCard title={t("skipForward")} valueLabel={t("seconds", { n: s.skipForwardSeconds })}>
-        <CommitSlider value={s.skipForwardSeconds} min={5} max={60} step={5} ariaLabel={t("skipForward")}
-          onCommit={(v) => updateSettings({ skipForwardSeconds: Math.round(v) })} />
-      </SliderCard>
-      <SliderCard title={t("skipBackward")} valueLabel={t("seconds", { n: s.skipBackwardSeconds })}>
-        <CommitSlider value={s.skipBackwardSeconds} min={5} max={60} step={5} ariaLabel={t("skipBackward")}
-          onCommit={(v) => updateSettings({ skipBackwardSeconds: Math.round(v) })} />
-      </SliderCard>
+      <SettingSlider title={t("skipForward")} value={s.skipForwardSeconds} min={5} max={60} step={5}
+        format={(v) => t("seconds", { n: Math.round(v) })}
+        onCommit={(v) => updateSettings({ skipForwardSeconds: Math.round(v) })} />
+      <SettingSlider title={t("skipBackward")} value={s.skipBackwardSeconds} min={5} max={60} step={5}
+        format={(v) => t("seconds", { n: Math.round(v) })}
+        onCommit={(v) => updateSettings({ skipBackwardSeconds: Math.round(v) })} />
 
       <h3 className={styles.setSection}>{t("features")}</h3>
       <SwitchCard title={t("autoUpdate")} desc={t("autoUpdateDesc")} on={s.autoUpdateEnabled}

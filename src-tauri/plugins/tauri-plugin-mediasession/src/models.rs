@@ -65,6 +65,19 @@ pub struct SetStopAtTrackEndPayload {
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetRepeatModePayload {
+    /// "off" | "all" | "one"
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetShufflePayload {
+    pub enabled: bool,
+}
+
 /// Timed sleep timer: epoch-ms deadline at which the native service must
 /// pause playback (0 cancels), plus the fade-out window before it. The
 /// deadline is enforced natively — the WebView's timers freeze in the

@@ -8,9 +8,17 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
-## Unreleased
+## 0.3.0 — 2026-11-28
 
 - **Library sorting:** the Home track list can now be sorted by title, artist, album, date added, duration or file name, ascending or descending. The choice is persisted in settings, the sort button in the list header shows the current order, and the playback queue follows the visible order. Comparators use locale-aware natural ordering ("Track 2" before "Track 10") with artist/album/title tie-breakers. Previously the list was always in raw scan order
+- **Shuffle & repeat modes:** the player gains shuffle and repeat (all / one / off) toggles, persisted in settings and enforced by the engines — ExoPlayer's own repeat/shuffle modes natively (new `set_repeat_mode` / `set_shuffle` plugin commands), equivalent logic in the web engine. The sleep timer's stop-at-track-end still overrides repeat while armed
+- **Play queue view:** a queue button in the player opens the full queue; tapping any row jumps to it through the same-queue fast path
+- **Favourites:** heart a track in the player or from the track menu; the Home list header gains a favourites filter
+- **Richer track menu:** play next, add to queue, add to playlist, favourite toggle and a track-info sheet (duration, size, added date, file path)
+- **Update hint:** on startup the app checks GitHub Releases (throttled to once per 6 hours, cached); when a newer version exists a slim dismissible hint bar appears on Home linking to the release page. No in-app downloading — just the hint, as requested
+- **Search by file name:** Home search now also matches file names, not just title/artist/album
+- **Playlist list search & sort:** the playlists screen gains a search field and name / recently-updated sorting
+- **Settings sliders:** the value label now follows the thumb while dragging (the value still commits once, on release)
 
 ## 0.2.4 — 2026-11-27
 

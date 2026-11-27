@@ -42,6 +42,8 @@ export interface EngineEvent {
   durationMs?: number;
 }
 
+export type RepeatMode = "off" | "all" | "one";
+
 export interface PlaybackEngine {
   readonly kind: "web" | "native";
   setQueue(items: EngineQueueItem[], startIndex: number, startPositionMs: number, autoplay: boolean): void;
@@ -56,6 +58,8 @@ export interface PlaybackEngine {
   setVolume(v: number): void;
   setSpeed(s: number): void;
   setStopAtTrackEnd(enabled: boolean): void;
+  setRepeatMode(mode: RepeatMode): void;
+  setShuffle(enabled: boolean): void;
   /**
    * Arm (epoch-ms deadline) or cancel (null) the timed sleep timer.
    * Native engines enforce it in the playback service — the WebView's
@@ -172,6 +176,8 @@ export class NativeAudioEngine implements PlaybackEngine {
   private volume: number | null = null;
   private speed: number | null = null;
   private sleepTimer: { deadlineMs: number; fadeOutSeconds: number } | null = null;
+  private repeatMode: RepeatMode = "all";
+  private shuffle = false;
 
   constructor(private readonly deps: PlaybackEngineDeps = {}) {}
 
@@ -337,6 +343,8 @@ export class NativeAudioEngine implements PlaybackEngine {
         payload: { deadlineMs: this.sleepTimer.deadlineMs, fadeOutSeconds: this.sleepTimer.fadeOutSeconds },
       });
     }
+    this.send("set_repeat_mode", { payload: { mode: this.repeatMode } });
+    this.send("set_shuffle", { payload: { enabled: this.shuffle } });
   }
 
   /**
@@ -470,6 +478,16 @@ export class NativeAudioEngine implements PlaybackEngine {
     this.send("set_stop_at_track_end", { payload: { enabled } });
   }
 
+  setRepeatMode(mode: RepeatMode): void {
+    this.repeatMode = mode;
+    this.send("set_repeat_mode", { payload: { mode } });
+  }
+
+  setShuffle(enabled: boolean): void {
+    this.shuffle = enabled;
+    this.send("set_shuffle", { payload: { enabled } });
+  }
+
   readonly hasNativeSleepTimer = true;
 
   setSleepTimer(deadlineMs: number | null, fadeOutSeconds: number): void {
@@ -507,6 +525,8 @@ export class WebAudioEngine implements PlaybackEngine {
   private index = -1;
   private cb: ((e: EngineEvent) => void) | null = null;
   private stopAtEnd = false;
+  private repeatMode: RepeatMode = "all";
+  private shuffle = false;
   private loadSeq = 0;
   private pendingVolume = 1;
   private pendingSpeed = 1;
@@ -579,11 +599,33 @@ export class WebAudioEngine implements PlaybackEngine {
       this.emit({ type: "ended", currentId: item.id });
       return;
     }
-    const nextIndex = (this.index + 1) % this.queue.length;
+    if (this.repeatMode === "one") {
+      // Replay the same item; the store's position resets via the tick.
+      const a = this.audio;
+      if (a) {
+        a.currentTime = 0;
+        void a.play().catch(() => undefined);
+      }
+      return;
+    }
+    if (this.repeatMode === "off" && !this.shuffle && this.index >= this.queue.length - 1) {
+      this.emit({ type: "ended", currentId: item.id });
+      return;
+    }
+    const nextIndex = this.pickNextIndex();
     const nextItem = this.queue[nextIndex];
     this.index = nextIndex;
     this.emit({ type: "transition", previousId: item.id, currentId: nextItem.id });
     void this.load(nextItem, 0, true);
+  }
+
+  private pickNextIndex(): number {
+    if (this.shuffle && this.queue.length > 1) {
+      let n = this.index;
+      while (n === this.index) n = Math.floor(Math.random() * this.queue.length);
+      return n;
+    }
+    return (this.index + 1) % this.queue.length;
   }
 
   private async load(item: EngineQueueItem, startPositionMs: number, autoplay: boolean): Promise<void> {
@@ -662,7 +704,11 @@ export class WebAudioEngine implements PlaybackEngine {
   private stepEngine(dir: 1 | -1): void {
     if (this.queue.length === 0 || this.index < 0) return;
     const prev = this.currentItem();
-    this.index = (this.index + dir + this.queue.length) % this.queue.length;
+    // Manual next under shuffle jumps randomly (repeat-one never traps
+    // the transport buttons); previous stays sequential.
+    this.index = dir === 1 && this.shuffle
+      ? this.pickNextIndex()
+      : (this.index + dir + this.queue.length) % this.queue.length;
     const item = this.queue[this.index];
     this.emit({ type: "transition", previousId: prev?.id, currentId: item.id });
     void this.load(item, 0, true);
@@ -690,6 +736,14 @@ export class WebAudioEngine implements PlaybackEngine {
 
   setStopAtTrackEnd(enabled: boolean): void {
     this.stopAtEnd = enabled;
+  }
+
+  setRepeatMode(mode: RepeatMode): void {
+    this.repeatMode = mode;
+  }
+
+  setShuffle(enabled: boolean): void {
+    this.shuffle = enabled;
   }
 
   readonly hasNativeSleepTimer = false;

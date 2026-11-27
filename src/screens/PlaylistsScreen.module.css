@@ -48,3 +48,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.plControls { margin-bottom: var(--sp-md); }
+.plSearch {
+  display: flex; align-items: center; gap: var(--sp-sm);
+  background: var(--interactive); border-radius: var(--radius-pill);
+  padding: 0 var(--sp-mdsm); height: 40px;
+}
+.plSearch svg { width: 18px; height: 18px; color: var(--text-muted); flex: none; }
+.plSearch input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  color: var(--text); font-size: 14px;
+}
+.plSearch input::placeholder { color: var(--text-muted); opacity: 0.75; }
+.plSearch button { width: 28px; height: 28px; flex: none; }
+.plSortRow { display: flex; gap: var(--sp-sm); margin-top: var(--sp-sm); }

@@ -84,6 +84,12 @@ object PlaybackStore {
     @Volatile
     var stopAtTrackEnd: Boolean = false
 
+    /** User's repeat preference ("off" | "all" | "one"); stopAtTrackEnd overrides it. */
+    var repeatModePref: String = "all"
+
+    /** User's shuffle preference; applied to the player alongside the queue. */
+    var shufflePref: Boolean = false
+
     /** True while the player's list is collapsed to the current item only. */
     @Volatile
     var collapsed: Boolean = false
@@ -454,9 +460,31 @@ object PlaybackStore {
                 collapsed = true
             }
         } else {
-            player.repeatMode = Player.REPEAT_MODE_ALL
+            player.repeatMode = repeatModeConstant()
             collapsed = false
         }
+        player.shuffleModeEnabled = shufflePref
+    }
+
+    private fun repeatModeConstant(): Int = when (repeatModePref) {
+        "off" -> Player.REPEAT_MODE_OFF
+        "one" -> Player.REPEAT_MODE_ONE
+        else -> Player.REPEAT_MODE_ALL
+    }
+
+    /** The setRepeatMode command: remember the preference and apply it now
+     *  (unless the sleep timer's stop-at-track-end override is active). */
+    fun setRepeatModePref(mode: String) {
+        repeatModePref = mode
+        withPlayer { p ->
+            if (!stopAtTrackEnd) p.repeatMode = repeatModeConstant()
+        }
+    }
+
+    /** The setShuffle command. */
+    fun setShufflePref(enabled: Boolean) {
+        shufflePref = enabled
+        withPlayer { p -> p.shuffleModeEnabled = enabled }
     }
 
     /**
@@ -472,7 +500,7 @@ object PlaybackStore {
                 applyRepeatAndCollapse(p)
             } else {
                 val wasCollapsed = collapsed
-                p.repeatMode = Player.REPEAT_MODE_ALL
+                p.repeatMode = repeatModeConstant()
                 collapsed = false
                 if (wasCollapsed) {
                     val obj = stateSnapshot()

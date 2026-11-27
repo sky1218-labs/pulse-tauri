@@ -65,6 +65,14 @@ impl<R: Runtime> MediaSession<R> {
         Ok(())
     }
 
+    pub fn set_repeat_mode(&self, _payload: SetRepeatModePayload) -> crate::Result<()> {
+        Ok(())
+    }
+
+    pub fn set_shuffle(&self, _payload: SetShufflePayload) -> crate::Result<()> {
+        Ok(())
+    }
+
     pub fn set_sleep_timer(&self, _payload: SetSleepTimerPayload) -> crate::Result<()> {
         Ok(())
     }

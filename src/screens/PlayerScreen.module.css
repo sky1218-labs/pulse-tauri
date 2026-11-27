@@ -417,3 +417,53 @@ button.ctrlBtn svg { width: 26px; height: 26px; }
 .speedChips { display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
 button.speedChip { font-size: var(--fs-label); }
 .speedSliderWrap { margin-top: var(--sp-md); }
+
+.modeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--sp-lg);
+  margin-top: var(--sp-sm);
+}
+.modeBtn {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+}
+.modeBtn svg { width: 22px; height: 22px; }
+.modeBtn:active { transform: scale(0.92); }
+.modeBtnActive { color: var(--accent); }
+
+.queueList { display: flex; flex-direction: column; max-height: 55vh; overflow-y: auto; }
+.queueRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-xs);
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  border-radius: var(--radius-md);
+}
+.queueRow:active { background: var(--interactive); }
+.queueRowCurrent { color: var(--accent); }
+.queueArt {
+  width: 40px; height: 40px; flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--interactive);
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.queueArt img { width: 100%; height: 100%; object-fit: cover; }
+.queueArt svg { width: 20px; height: 20px; color: var(--text-muted); }
+.queueMeta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.queueTitleText { font-size: var(--fs-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.queueArtist { font-size: var(--fs-caption); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
