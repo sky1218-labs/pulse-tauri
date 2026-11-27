@@ -70,6 +70,13 @@ ExoPlayer/MediaSession plugin for native playback. No accounts, no cloud.
    position across navigation; don't break that.
 7. **Polling backs off.** Native poll is 500 ms playing / 2 s paused.
    Don't add new fixed-interval polling without a paused/idle backoff.
+8. **Anything that must fire while the app is backgrounded lives in the
+   native service, never on a WebView timer.** Android freezes WebView
+   JS timers when the app backgrounds / the screen turns off, while the
+   native player keeps playing. The sleep-timer deadline is the example:
+   it is armed via `set_sleep_timer`, enforced (with its fade-out) by
+   the Kotlin service, and persisted on both sides so a process restart
+   re-arms it. The WebView only mirrors the countdown.
 
 ## UI & motion rules (hard)
 

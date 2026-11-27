@@ -79,6 +79,11 @@ class PulsePlaybackService : MediaSessionService() {
         mediaSession = session
         addSession(session)
 
+        // Re-arm a persisted sleep-timer deadline (process may have been
+        // killed after the user armed it; the WebView cannot be trusted
+        // to still exist, let alone to fire on time).
+        PlaybackStore.restoreSleepTimer(this)
+
         // A setQueue that arrived before the service existed is applied now.
         PlaybackStore.pendingQueue?.let { pending ->
             PlaybackStore.pendingQueue = null

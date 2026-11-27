@@ -65,6 +65,17 @@ pub struct SetStopAtTrackEndPayload {
     pub enabled: bool,
 }
 
+/// Timed sleep timer: epoch-ms deadline at which the native service must
+/// pause playback (0 cancels), plus the fade-out window before it. The
+/// deadline is enforced natively — the WebView's timers freeze in the
+/// background, the playback service does not.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSleepTimerPayload {
+    pub deadline_ms: u64,
+    pub fade_out_seconds: u32,
+}
+
 /// Snapshot of the native player's state, returned by `get_state`
 /// (Kotlin builds the same shape for `playback-event` triggers).
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

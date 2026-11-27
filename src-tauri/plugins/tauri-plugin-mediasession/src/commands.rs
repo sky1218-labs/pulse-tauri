@@ -81,6 +81,14 @@ pub async fn set_stop_at_track_end<R: Runtime>(
 }
 
 #[command]
+pub async fn set_sleep_timer<R: Runtime>(
+    app: AppHandle<R>,
+    payload: SetSleepTimerPayload,
+) -> Result<()> {
+    app.mediasession().set_sleep_timer(payload)
+}
+
+#[command]
 pub async fn stop_playback<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     app.mediasession().stop_playback()
 }

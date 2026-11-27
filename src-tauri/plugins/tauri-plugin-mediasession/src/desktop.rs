@@ -65,6 +65,10 @@ impl<R: Runtime> MediaSession<R> {
         Ok(())
     }
 
+    pub fn set_sleep_timer(&self, _payload: SetSleepTimerPayload) -> crate::Result<()> {
+        Ok(())
+    }
+
     pub fn stop_playback(&self) -> crate::Result<()> {
         Ok(())
     }

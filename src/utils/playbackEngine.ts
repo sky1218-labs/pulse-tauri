@@ -56,6 +56,15 @@ export interface PlaybackEngine {
   setVolume(v: number): void;
   setSpeed(s: number): void;
   setStopAtTrackEnd(enabled: boolean): void;
+  /**
+   * Arm (epoch-ms deadline) or cancel (null) the timed sleep timer.
+   * Native engines enforce it in the playback service — the WebView's
+   * own timers freeze when the app is backgrounded, so expiry must not
+   * depend on them. Web engines have no native side: `hasNativeSleepTimer`
+   * is false and the store keeps enforcing expiry itself.
+   */
+  setSleepTimer(deadlineMs: number | null, fadeOutSeconds: number): void;
+  readonly hasNativeSleepTimer: boolean;
   stop(): void;
   onEvent(cb: (e: EngineEvent) => void): void;
 }
@@ -162,6 +171,7 @@ export class NativeAudioEngine implements PlaybackEngine {
   /** Remembered so they can be re-applied once the service's player exists. */
   private volume: number | null = null;
   private speed: number | null = null;
+  private sleepTimer: { deadlineMs: number; fadeOutSeconds: number } | null = null;
 
   constructor(private readonly deps: PlaybackEngineDeps = {}) {}
 
@@ -322,6 +332,11 @@ export class NativeAudioEngine implements PlaybackEngine {
     // store applies them before setQueue); re-apply the remembered values.
     if (this.volume !== null) this.send("set_volume", { payload: { volume: this.volume } });
     if (this.speed !== null) this.send("set_speed", { payload: { speed: this.speed } });
+    if (this.sleepTimer !== null) {
+      this.send("set_sleep_timer", {
+        payload: { deadlineMs: this.sleepTimer.deadlineMs, fadeOutSeconds: this.sleepTimer.fadeOutSeconds },
+      });
+    }
   }
 
   /**
@@ -455,8 +470,18 @@ export class NativeAudioEngine implements PlaybackEngine {
     this.send("set_stop_at_track_end", { payload: { enabled } });
   }
 
+  readonly hasNativeSleepTimer = true;
+
+  setSleepTimer(deadlineMs: number | null, fadeOutSeconds: number): void {
+    this.sleepTimer = deadlineMs === null ? null : { deadlineMs, fadeOutSeconds };
+    this.send("set_sleep_timer", {
+      payload: { deadlineMs: deadlineMs ?? 0, fadeOutSeconds },
+    });
+  }
+
   stop(): void {
     this.send("stop_playback");
+    this.sleepTimer = null;
     this.stopAtEnd = false;
     this.stopPoll();
     this.queue = [];
@@ -665,6 +690,12 @@ export class WebAudioEngine implements PlaybackEngine {
 
   setStopAtTrackEnd(enabled: boolean): void {
     this.stopAtEnd = enabled;
+  }
+
+  readonly hasNativeSleepTimer = false;
+
+  setSleepTimer(_deadlineMs: number | null, _fadeOutSeconds: number): void {
+    // No native side exists; the store enforces expiry with its own tick.
   }
 
   stop(): void {

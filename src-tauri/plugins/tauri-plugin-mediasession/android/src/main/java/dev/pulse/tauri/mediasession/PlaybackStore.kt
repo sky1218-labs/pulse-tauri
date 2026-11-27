@@ -1,7 +1,9 @@
 package dev.pulse.tauri.mediasession
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -81,6 +83,171 @@ object PlaybackStore {
     /** True while the player's list is collapsed to the current item only. */
     @Volatile
     var collapsed: Boolean = false
+
+    /* ------------------------- sleep timer (timed) -------------------------
+     * The timed sleep deadline is enforced HERE, in the playback process,
+     * never in the WebView: Android freezes WebView JS timers when the app
+     * is backgrounded / the screen is off — exactly when a sleep timer
+     * matters — while this service keeps playing. The deadline is also
+     * persisted (SharedPreferences) so a process restart re-arms it.
+     * Wall-clock deadline, monotonic scheduling: the Handler runs on
+     * SystemClock.uptimeMillis, so each runnable re-checks the wall clock
+     * and re-schedules if the clock moved. */
+
+    private const val PREFS_NAME = "pulse_playback"
+    private const val KEY_SLEEP_DEADLINE = "sleep_deadline_ms"
+    private const val KEY_SLEEP_FADE = "sleep_fade_seconds"
+
+    @Volatile
+    private var appContext: Context? = null
+
+    /** Armed deadline (epoch ms); 0 = no timed sleep timer. */
+    @Volatile
+    var sleepDeadlineMs: Long = 0L
+        private set
+
+    @Volatile
+    private var sleepFadeSeconds: Int = 0
+
+    /** Volume captured when the fade started; restored after the pause. */
+    private var sleepFadeBaseVolume: Float? = null
+
+    private var sleepFireRunnable: Runnable? = null
+    private var sleepFadeRunnable: Runnable? = null
+
+    fun setAppContext(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    private fun persistSleepTimer() {
+        try {
+            val ctx = appContext ?: return
+            val edit = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            if (sleepDeadlineMs > 0L) {
+                edit.putLong(KEY_SLEEP_DEADLINE, sleepDeadlineMs)
+                edit.putInt(KEY_SLEEP_FADE, sleepFadeSeconds)
+            } else {
+                edit.remove(KEY_SLEEP_DEADLINE)
+                edit.remove(KEY_SLEEP_FADE)
+            }
+            edit.apply()
+        } catch (t: Throwable) {
+            Log.e(TAG, "persist sleep timer failed", t)
+        }
+    }
+
+    /** Arm (deadlineMs > 0) or cancel (deadlineMs <= 0) the timed sleep timer. */
+    fun setSleepTimer(deadlineMs: Long, fadeOutSeconds: Int) {
+        sleepDeadlineMs = if (deadlineMs > 0L) deadlineMs else 0L
+        sleepFadeSeconds = fadeOutSeconds.coerceAtLeast(0)
+        persistSleepTimer()
+        mainHandler.post { scheduleSleepTimer() }
+    }
+
+    /**
+     * Called by the service onCreate: re-arm a persisted deadline after a
+     * process restart. A deadline already in the past is dropped, never
+     * fired — playback from before the restart is gone, and pausing a
+     * future session would be a bug.
+     */
+    fun restoreSleepTimer(context: Context) {
+        setAppContext(context)
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val deadline = prefs.getLong(KEY_SLEEP_DEADLINE, 0L)
+            if (deadline > System.currentTimeMillis()) {
+                sleepDeadlineMs = deadline
+                sleepFadeSeconds = prefs.getInt(KEY_SLEEP_FADE, 0)
+                mainHandler.post { scheduleSleepTimer() }
+            } else if (deadline > 0L) {
+                sleepDeadlineMs = 0L
+                persistSleepTimer()
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "restore sleep timer failed", t)
+        }
+    }
+
+    /** The user set a new volume; if a fade is running it follows the new base. */
+    fun onUserSetVolume(volume: Float) {
+        if (sleepFadeBaseVolume != null) sleepFadeBaseVolume = volume
+    }
+
+    private fun cancelSleepRunnables() {
+        sleepFireRunnable?.let { mainHandler.removeCallbacks(it) }
+        sleepFadeRunnable?.let { mainHandler.removeCallbacks(it) }
+        sleepFireRunnable = null
+        sleepFadeRunnable = null
+    }
+
+    /** (Re)build the Handler schedule for the current deadline. Main thread. */
+    private fun scheduleSleepTimer() {
+        cancelSleepRunnables()
+        // Re-arming or cancelling ends any in-progress fade: restore volume.
+        sleepFadeBaseVolume?.let { base ->
+            sleepFadeBaseVolume = null
+            withPlayer { it.volume = base }
+        }
+        val deadline = sleepDeadlineMs
+        if (deadline <= 0L) return
+        val remaining = deadline - System.currentTimeMillis()
+        if (remaining <= 0L) {
+            fireSleepTimer()
+            return
+        }
+        val fire = Runnable { onSleepFireTick() }
+        sleepFireRunnable = fire
+        mainHandler.postDelayed(fire, remaining)
+        val fadeMs = sleepFadeSeconds * 1000L
+        if (fadeMs > 0L) {
+            val fade = Runnable { onSleepFadeTick() }
+            sleepFadeRunnable = fade
+            mainHandler.postDelayed(fade, (remaining - fadeMs).coerceAtLeast(0L))
+        }
+    }
+
+    private fun onSleepFireTick() {
+        val remaining = sleepDeadlineMs - System.currentTimeMillis()
+        if (sleepDeadlineMs <= 0L) return
+        if (remaining > 0L) {
+            // Wall clock moved backwards; re-schedule for the real remainder.
+            val fire = Runnable { onSleepFireTick() }
+            sleepFireRunnable = fire
+            mainHandler.postDelayed(fire, remaining)
+            return
+        }
+        fireSleepTimer()
+    }
+
+    private fun onSleepFadeTick() {
+        val deadline = sleepDeadlineMs
+        if (deadline <= 0L) return
+        val fadeMs = sleepFadeSeconds * 1000L
+        val remaining = deadline - System.currentTimeMillis()
+        if (remaining <= 0L || fadeMs <= 0L) return
+        val progress = (1.0 - remaining.toDouble() / fadeMs.toDouble()).coerceIn(0.0, 1.0)
+        withPlayer { p ->
+            if (sleepFadeBaseVolume == null) sleepFadeBaseVolume = p.volume
+            val base = sleepFadeBaseVolume ?: p.volume
+            p.volume = (base * (1.0 - progress)).toFloat().coerceIn(0f, 1f)
+        }
+        val fade = Runnable { onSleepFadeTick() }
+        sleepFadeRunnable = fade
+        mainHandler.postDelayed(fade, 250L)
+    }
+
+    /** Deadline reached: pause, restore the pre-fade volume, disarm. Main thread. */
+    private fun fireSleepTimer() {
+        cancelSleepRunnables()
+        val base = sleepFadeBaseVolume
+        sleepFadeBaseVolume = null
+        sleepDeadlineMs = 0L
+        persistSleepTimer()
+        withPlayer { p ->
+            p.pause()
+            if (base != null) p.volume = base
+        }
+    }
 
     private val mainHandler = Handler(Looper.getMainLooper())
 

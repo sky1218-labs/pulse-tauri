@@ -87,6 +87,11 @@ export async function setStopAtTrackEnd(enabled: boolean): Promise<void> {
   await invoke(cmd("set_stop_at_track_end"), { payload: { enabled } });
 }
 
+/** Arm (deadlineMs > 0, epoch ms) or cancel (0) the native sleep timer. */
+export async function setSleepTimer(deadlineMs: number, fadeOutSeconds: number): Promise<void> {
+  await invoke(cmd("set_sleep_timer"), { payload: { deadlineMs, fadeOutSeconds } });
+}
+
 export async function stopPlayback(): Promise<void> {
   await invoke(cmd("stop_playback"));
 }

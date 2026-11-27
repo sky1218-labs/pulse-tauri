@@ -62,6 +62,13 @@ class SetStopAtTrackEndArgs {
     var enabled: Boolean = false
 }
 
+@InvokeArg
+class SetSleepTimerArgs {
+    /** Epoch ms when playback must stop; 0 cancels the timer. */
+    var deadlineMs: Long = 0
+    var fadeOutSeconds: Int = 0
+}
+
 /**
  * Tauri side of the media-session plugin. Since 0.1.11 playback is native
  * (ExoPlayer inside [PulsePlaybackService]); JS is a controller. Commands
@@ -82,6 +89,7 @@ class SetStopAtTrackEndArgs {
 class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
 
     override fun load(webView: WebView) {
+        PlaybackStore.setAppContext(activity)
         PlaybackStore.eventSink = { obj ->
             // The bridge to the WebView can throw when the activity/webview
             // is gone (e.g. service outlived the UI). That must never crash.
@@ -193,7 +201,9 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
     fun setVolume(invoke: Invoke) {
         try {
             val args = invoke.parseArgs(SetVolumeArgs::class.java)
-            PlaybackStore.withPlayer { it.volume = args.volume.toFloat().coerceIn(0f, 1f) }
+            val v = args.volume.toFloat().coerceIn(0f, 1f)
+            PlaybackStore.onUserSetVolume(v)
+            PlaybackStore.withPlayer { it.volume = v }
             invoke.resolve()
         } catch (t: Throwable) {
             invoke.reject(t.message ?: "setVolume failed")
@@ -223,8 +233,20 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     @Command
+    fun setSleepTimer(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(SetSleepTimerArgs::class.java)
+            PlaybackStore.setSleepTimer(args.deadlineMs, args.fadeOutSeconds)
+            invoke.resolve()
+        } catch (t: Throwable) {
+            invoke.reject(t.message ?: "setSleepTimer failed")
+        }
+    }
+
+    @Command
     fun stopPlayback(invoke: Invoke) {
         try {
+            PlaybackStore.setSleepTimer(0L, 0)
             PlaybackStore.pendingQueue = null
             PlaybackStore.withPlayer {
                 it.stop()

@@ -58,6 +58,31 @@ export const EMPTY_LIBRARY: LibraryData = {
  * store only requires re-implementing these four functions.
  */
 const KEY = "pulse-tauri.library.v1";
+const SLEEP_DEADLINE_KEY = "pulse-tauri.sleep-deadline.v1";
+
+/**
+ * The armed sleep-timer deadline (epoch ms), persisted separately from
+ * the library: the native service enforces it even if the WebView dies,
+ * and on relaunch the UI rehydrates its countdown from it. Null = none.
+ */
+export function loadSleepDeadline(): number | null {
+  try {
+    const raw = localStorage.getItem(SLEEP_DEADLINE_KEY);
+    const n = raw === null ? NaN : Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSleepDeadline(deadlineMs: number | null): void {
+  try {
+    if (deadlineMs === null) localStorage.removeItem(SLEEP_DEADLINE_KEY);
+    else localStorage.setItem(SLEEP_DEADLINE_KEY, String(deadlineMs));
+  } catch {
+    /* storage unavailable — the native side still holds the deadline */
+  }
+}
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

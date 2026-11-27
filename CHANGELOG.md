@@ -8,6 +8,14 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 0.2.3 — 2026-11-27
+
+Sleep timer fix. Storage schema, package id and signing key unchanged — updates install in place over 0.2.2, all user data carries over.
+
+- **The timed sleep timer is now enforced by the native playback service, not the WebView.** Previously the expiry check ran on a WebView JS interval; Android freezes WebView timers when the app is backgrounded or the screen is off — exactly when a sleep timer matters — while native playback kept going, so a timer set at bedtime could play all night. The deadline is now handed to the Kotlin service (`set_sleep_timer`), which pauses playback at the deadline itself, including the fade-out ramp
+- The deadline is persisted on both sides (native SharedPreferences + localStorage): if the app process is killed after arming, the service re-arms the deadline on restart and the UI rebuilds its countdown on relaunch. A deadline that passed while the app was dead is dropped, never fired into a later session
+- The WebView tick now only mirrors the countdown on native; the web (dev) engine keeps the original JS enforcement. "End of track" mode is unchanged (already native)
+
 ## 0.2.2 — 2026-11-26
 
 Performance and app-feel release. Storage schema, package id and signing key unchanged — all user data carries over, updates install in place over 0.2.1.

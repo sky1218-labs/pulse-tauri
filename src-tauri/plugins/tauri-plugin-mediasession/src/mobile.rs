@@ -83,6 +83,11 @@ impl<R: Runtime> MediaSession<R> {
         Ok(())
     }
 
+    pub fn set_sleep_timer(&self, payload: SetSleepTimerPayload) -> crate::Result<()> {
+        self.0.run_mobile_plugin::<()>("setSleepTimer", payload)?;
+        Ok(())
+    }
+
     pub fn stop_playback(&self) -> crate::Result<()> {
         self.0
             .run_mobile_plugin::<()>("stopPlayback", serde_json::json!({}))?;

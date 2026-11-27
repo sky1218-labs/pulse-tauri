@@ -11,7 +11,7 @@ import { normalizeLocale, type LocaleCode } from "../i18n";
 import { compareVersions, displayVersion } from "../utils/sleepTimer";
 import { quantizeSpeed } from "../utils/playbackSpeed";
 
-export const APP_VERSION = "0.2.2";
+export const APP_VERSION = "0.2.3";
 const RELEASES_API = "https://api.github.com/repos/sky1218-labs/pulse-tauri/releases/latest";
 
 type UpdateState =

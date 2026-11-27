@@ -429,6 +429,42 @@ describe("same-queue fast path", () => {
   });
 });
 
+describe("native sleep timer", () => {
+  it("arms and cancels through the set_sleep_timer command", () => {
+    const { deps, calls } = makeNativeDeps({ playing: true, positionMs: 0, durationMs: 180_000, currentId: "a", ended: false });
+    const engine = createPlaybackEngine(deps);
+    expect(engine.hasNativeSleepTimer).toBe(true);
+    engine.setSleepTimer(1_700_000_000_000, 5);
+    expect(calls).toContainEqual({
+      cmd: "plugin:mediasession|set_sleep_timer",
+      args: { payload: { deadlineMs: 1_700_000_000_000, fadeOutSeconds: 5 } },
+    });
+    engine.setSleepTimer(null, 0);
+    expect(calls).toContainEqual({
+      cmd: "plugin:mediasession|set_sleep_timer",
+      args: { payload: { deadlineMs: 0, fadeOutSeconds: 0 } },
+    });
+  });
+
+  it("re-applies the armed timer when a fresh queue restarts the service", () => {
+    const { deps, calls } = makeNativeDeps({ playing: false, positionMs: 0, durationMs: 0, currentId: "", ended: false });
+    const engine = createPlaybackEngine(deps);
+    engine.setSleepTimer(1_700_000_000_000, 5);
+    calls.length = 0;
+    engine.setQueue([itemA], 0, 0, true);
+    const queueIdx = calls.findIndex((c) => c.cmd === "plugin:mediasession|set_queue");
+    const timerIdx = calls.findIndex((c) => c.cmd === "plugin:mediasession|set_sleep_timer");
+    expect(queueIdx).toBeGreaterThanOrEqual(0);
+    expect(timerIdx).toBeGreaterThan(queueIdx);
+  });
+
+  it("web engine reports no native sleep timer (the store enforces expiry)", () => {
+    const engine = createPlaybackEngine({ android: false, audioFactory: () => new FakeAudio() });
+    expect(engine.hasNativeSleepTimer).toBe(false);
+    expect(() => engine.setSleepTimer(123, 5)).not.toThrow();
+  });
+});
+
 describe("createPlaybackEngine", () => {
   it("returns the web engine off Android", () => {
     const engine = createPlaybackEngine({ android: false, audioFactory: () => new FakeAudio() });

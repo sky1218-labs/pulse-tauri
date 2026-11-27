@@ -4,6 +4,7 @@ import { dedupeTracks, addTracksToPlaylist, removeTrackFromQueue, ensureFolderPl
 import { canonicalize } from "./utils/audioPath";
 import {
   loadLibrary, saveLibrary, clearLibraryStorage, newId,
+  loadSleepDeadline, saveSleepDeadline,
   type LibraryData, type Settings, DEFAULT_SETTINGS,
 } from "./repository";
 import { translate, type LocaleCode } from "./i18n";
@@ -522,6 +523,18 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       if (!timer) return;
       setSleepRemainingMs(timer.endOfTrack ? null : remainingMs(timer));
       const engine = engineRef.current!;
+      if (engine.hasNativeSleepTimer) {
+        // Expiry and the fade-out are enforced by the native playback
+        // service (the WebView's timers freeze in the background, the
+        // service does not). This tick only mirrors the countdown and
+        // clears the UI state once the deadline has passed — the pause
+        // itself has already happened natively by then.
+        if (isExpired(timer)) {
+          saveSleepDeadline(null);
+          setSleepTimer(null);
+        }
+        return;
+      }
       const fade = fadeProgress(timer, dataRef.current.settings.sleepTimerFadeOutSeconds);
       if (fade !== null) {
         engine.setVolume(calculateFadeOutVolume(clampVolume(volume), fade));
@@ -534,6 +547,35 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     }, 250);
     return () => window.clearInterval(id);
   }, [sleepTimer, volume]);
+
+  // Rehydrate a sleep deadline that outlived the WebView (the app was
+  // killed after arming): the native service kept it and will still fire;
+  // the UI rebuilds its countdown from the persisted deadline and
+  // re-arms the engine idempotently. A past deadline is just dropped —
+  // the native side already paused (or dropped it on service start).
+  const sleepRehydratedRef = useRef(false);
+  useEffect(() => {
+    if (sleepRehydratedRef.current) return;
+    sleepRehydratedRef.current = true;
+    const deadline = loadSleepDeadline();
+    if (deadline === null) return;
+    const now = Date.now();
+    if (deadline <= now) {
+      saveSleepDeadline(null);
+      return;
+    }
+    const settings = dataRef.current.settings;
+    setSleepTimer({
+      durationMs: deadline - now,
+      startedAt: now,
+      fadeOutEnabled: settings.sleepTimerFadeOutEnabled,
+      endOfTrack: false,
+    });
+    engineRef.current!.setSleepTimer(
+      deadline,
+      settings.sleepTimerFadeOutEnabled ? settings.sleepTimerFadeOutSeconds : 0,
+    );
+  }, []);
 
   // An armed end-of-track sleep timer switches the engine into
   // stop-at-track-end mode (native: queue collapse + repeat off; web:
@@ -590,9 +632,26 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setSpeedState(cs);
       engineRef.current!.setSpeed(cs);
     },
-    startSleep: (ms) => setSleepTimer(startSleepTimer(ms, dataRef.current.settings.sleepTimerFadeOutEnabled)),
+    startSleep: (ms) => {
+      const settings = dataRef.current.settings;
+      setSleepTimer(startSleepTimer(ms, settings.sleepTimerFadeOutEnabled));
+      if (ms > 0) {
+        // Timed mode: hand the deadline to the native service (it fires
+        // even with the WebView frozen/dead) and persist it so a relaunch
+        // can rebuild the countdown. End-of-track mode (ms === 0) stays
+        // on the engine's stop-at-track-end path instead.
+        const deadline = Date.now() + ms;
+        saveSleepDeadline(deadline);
+        engineRef.current!.setSleepTimer(
+          deadline,
+          settings.sleepTimerFadeOutEnabled ? settings.sleepTimerFadeOutSeconds : 0,
+        );
+      }
+    },
     stopSleep: () => {
       setSleepTimer(null);
+      saveSleepDeadline(null);
+      engineRef.current!.setSleepTimer(null, 0);
       engineRef.current!.setVolume(clampVolume(volume));
     },
     answerResume: (resume) => {

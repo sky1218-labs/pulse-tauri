@@ -47,6 +47,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::set_volume,
             commands::set_speed,
             commands::set_stop_at_track_end,
+            commands::set_sleep_timer,
             commands::stop_playback,
             commands::get_state
         ])
