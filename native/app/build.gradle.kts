@@ -34,10 +34,27 @@ android {
         }
     }
 
+    // Per-ABI APKs (matching the asset names the Tauri releases used)
+    // plus a universal APK.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = true
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            if (keystoreFile != null) signingConfig = signingConfigs.getByName("ci")
+            signingConfig = if (keystoreFile != null) {
+                signingConfigs.getByName("ci")
+            } else {
+                // No release keystore configured: debug-sign so the APK
+                // still installs; release assets are labelled accordingly.
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

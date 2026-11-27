@@ -8,6 +8,15 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 1.0.0 — 2026-11-28
+
+**Breaking change (called out per the compatibility policy):** Pulse is now a fully native Kotlin app (Jetpack Compose + Media3, under `native/`), replacing the Tauri/WebView build. Package id and release signing key are unchanged, so it installs as an in-place update — but the library database lived in the old app's WebView storage, which a native app cannot read. **After upgrading, rescan your folders once; playlists, favourites, positions and settings start fresh.** Audio files on the device are untouched.
+
+- **One language, one job:** Kotlin now does everything — UI (Compose), library/scan/tags (MediaMetadataRetriever), playback (the Media3 service ported from the old plugin). The TypeScript UI, Rust bridge and plugin layers are retired; the Tauri sources remain in the repo for reference but no longer ship
+- **Feature parity with 0.3.0:** library sorting (6 keys), shuffle & repeat modes, play queue view, favourites + filter, rich track menu, update hint, file-name search, playlist search/sort/reorder, sleep timer (still natively enforced with the AlarmManager backup), speed/volume, last-session restore
+- **New — file management:** delete the actual audio file from the device (system consent dialog on Android 11+, direct delete where allowed), remove from library, and a clean-up action that drops library entries whose files no longer exist
+- Library data is now a single JSON document in app storage; track ids are stable path hashes so rescans preserve favourites and playlist membership going forward
+
 ## 0.3.0 — 2026-11-28
 
 - **Library sorting:** the Home track list can now be sorted by title, artist, album, date added, duration or file name, ascending or descending. The choice is persisted in settings, the sort button in the list header shows the current order, and the playback queue follows the visible order. Comparators use locale-aware natural ordering ("Track 2" before "Track 10") with artist/album/title tie-breakers. Previously the list was always in raw scan order
