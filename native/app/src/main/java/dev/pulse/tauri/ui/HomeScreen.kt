@@ -44,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,7 +64,6 @@ fun HomeScreen(
     val data by vm.data.collectAsStateWithLifecycle()
     val snapshot by vm.snapshot.collectAsStateWithLifecycle()
     val updateHint by vm.updateHint.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     var query by remember { mutableStateOf("") }
     var favOnly by remember { mutableStateOf(false) }
@@ -122,7 +120,7 @@ fun HomeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { context.startActivity(vm.openUpdatePage()) }) { Text(vm.t("updateView")) }
+                TextButton(onClick = { vm.checkForUpdateNow() }) { Text(vm.t("downloadUpdate")) }
                 IconButton(onClick = { vm.dismissUpdateHint() }) {
                     Icon(Icons.Filled.Close, contentDescription = "dismiss")
                 }

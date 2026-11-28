@@ -8,6 +8,11 @@ From 0.1.11 on, updates are compatibility-first:
 - Package id (`dev.pulse.tauri`) and the release signing key never change, so Android always treats a new build as an update of the same app.
 - Storage-schema changes ship with a migration that carries existing data forward; a change that cannot migrate data is a breaking change and is called out explicitly before release.
 
+## 1.0.1 — 2026-11-28
+
+- **Playlist sorting, both levels:** the playlist list now sorts by recently updated, name, date created or song count (tap the active key again to flip direction; the choice is persisted). Inside a playlist, a sort button orders the tracks by title, artist, album, date added, duration or file name — the sorted order becomes the playlist order, and manual up/down moves still work afterwards
+- **In-app updates:** the update flow no longer opens a browser. When a newer release exists, the app downloads the correct APK for the device (arm64-v8a preferred) inside the app with a progress dialog, then hands it to the system installer. Android still shows its own install confirmation — that step cannot be skipped by any normal app — and on first use the system may ask to allow installs from Pulse. The startup hint and the Settings check both use this flow
+
 ## 1.0.0 — 2026-11-28
 
 **Breaking change (called out per the compatibility policy):** Pulse is now a fully native Kotlin app (Jetpack Compose + Media3, under `native/`), replacing the Tauri/WebView build. Package id and release signing key are unchanged, so it installs as an in-place update — but the library database lived in the old app's WebView storage, which a native app cannot read. **After upgrading, rescan your folders once; playlists, favourites, positions and settings start fresh.** Audio files on the device are untouched.

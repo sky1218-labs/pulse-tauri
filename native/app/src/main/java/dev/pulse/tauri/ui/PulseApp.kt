@@ -81,6 +81,7 @@ fun PulseApp(
                 if (screen != Screen.Player) {
                     MiniPlayer(vm, openPlayer = { screen = Screen.Player })
                 }
+                UpdateFlowDialog(vm)
                 if (toast != null) {
                     Text(
                         toast!!,
@@ -119,5 +120,109 @@ private fun MiniPlayer(vm: AppViewModel, openPlayer: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+
+/**
+ * The in-app update flow, driven by the ViewModel's updateState:
+ * available -> download (progress) -> system installer. No browser.
+ */
+@Composable
+private fun UpdateFlowDialog(vm: AppViewModel) {
+    val state by vm.updateState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Once downloaded, hand straight to the system installer when the
+    // install permission is already granted.
+    androidx.compose.runtime.LaunchedEffect(state) {
+        if (state is UpdateState.Downloaded && vm.canInstallUpdates()) {
+            vm.updateInstallIntent()?.let { context.startActivity(it) }
+        }
+    }
+
+    when (val st = state) {
+        is UpdateState.Available -> {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { vm.resetUpdateState() },
+                title = { Text(vm.t("updateAvailable")) },
+                text = { Text("Pulse v" + st.info.version) },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { vm.startUpdateDownload() }) {
+                        Text(vm.t("downloadUpdate"))
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { vm.resetUpdateState() }) {
+                        Text(vm.t("updateLater"))
+                    }
+                },
+            )
+        }
+        is UpdateState.Downloading -> {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { },
+                title = { Text(vm.t("updateAvailable")) },
+                text = {
+                    Column {
+                        Text(vm.t("updateDownloading", st.percent))
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { st.percent / 100f },
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        )
+                    }
+                },
+                confirmButton = { },
+            )
+        }
+        is UpdateState.Downloaded -> {
+            if (!vm.canInstallUpdates()) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { vm.resetUpdateState() },
+                    title = { Text(vm.t("updateAvailable")) },
+                    text = { Text(vm.t("updateNeedsPermission")) },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            context.startActivity(vm.unknownSourcesIntent())
+                        }) { Text(vm.t("updateOpenSettings")) }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { vm.resetUpdateState() }) {
+                            Text(vm.t("updateLater"))
+                        }
+                    },
+                )
+            }
+        }
+        is UpdateState.Failed -> {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { vm.resetUpdateState() },
+                title = { Text(vm.t("updateAvailable")) },
+                text = { Text(st.message) },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { vm.startUpdateDownload() }) {
+                        Text(vm.t("downloadUpdate"))
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { vm.resetUpdateState() }) {
+                        Text(vm.t("updateLater"))
+                    }
+                },
+            )
+        }
+        is UpdateState.UpToDate -> {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { vm.resetUpdateState() },
+                title = { Text(vm.t("checkForUpdates")) },
+                text = { Text(vm.t("updateUpToDate")) },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { vm.resetUpdateState() }) {
+                        Text(vm.t("close"))
+                    }
+                },
+            )
+        }
+        else -> {}
     }
 }

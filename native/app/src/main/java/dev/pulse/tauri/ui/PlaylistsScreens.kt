@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -50,7 +51,9 @@ import dev.pulse.tauri.data.Playlist
 fun PlaylistsScreen(vm: AppViewModel, goBack: () -> Unit, openPlaylist: (String) -> Unit) {
     val data by vm.data.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
-    var sortMode by remember { mutableStateOf("recent") }
+    var showSort by remember { mutableStateOf(false) }
+    val sortKey = data.settings.playlistSortKey
+    val sortDir = data.settings.playlistSortDir
     var creating by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var renaming by remember { mutableStateOf<Playlist?>(null) }
@@ -58,10 +61,10 @@ fun PlaylistsScreen(vm: AppViewModel, goBack: () -> Unit, openPlaylist: (String)
     var confirmDelete by remember { mutableStateOf<Playlist?>(null) }
     var menu by remember { mutableStateOf<Playlist?>(null) }
 
-    val visible = remember(data.playlists, query, sortMode) {
+    val visible = remember(data.playlists, query, sortKey, sortDir) {
         val q = query.trim().lowercase()
         val filtered = if (q.isBlank()) data.playlists else data.playlists.filter { it.name.lowercase().contains(q) }
-        if (sortMode == "name") filtered.sortedBy { it.name.lowercase() } else filtered.sortedByDescending { it.updatedAt }
+        dev.pulse.tauri.data.PlaylistSort.sort(filtered, sortKey, sortDir)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -84,9 +87,19 @@ fun PlaylistsScreen(vm: AppViewModel, goBack: () -> Unit, openPlaylist: (String)
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             )
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = sortMode == "recent", onClick = { sortMode = "recent" }, label = { Text(vm.t("playlistSortRecent")) })
-                FilterChip(selected = sortMode == "name", onClick = { sortMode = "name" }, label = { Text(vm.t("playlistSortName")) })
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    vm.t("songsCount", data.playlists.size).replace(Regex("[0-9]+"), data.playlists.size.toString()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { showSort = true }) {
+                    Icon(Icons.Filled.Sort, contentDescription = null)
+                    Spacer(Modifier.padding(4.dp))
+                    Text(vm.t("playlistSort" + sortKey.replaceFirstChar { it.uppercase() }))
+                    Text(if (sortDir == "asc") " ↑" else " ↓")
+                }
             }
             if (data.playlists.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -119,6 +132,36 @@ fun PlaylistsScreen(vm: AppViewModel, goBack: () -> Unit, openPlaylist: (String)
             onClick = { name = ""; creating = true },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
         ) { Icon(Icons.Filled.Add, contentDescription = vm.t("createPlaylist")) }
+    }
+
+    if (showSort) {
+        AlertDialog(
+            onDismissRequest = { showSort = false },
+            title = { Text(vm.t("sortBy")) },
+            text = {
+                Column {
+                    for (key in dev.pulse.tauri.data.PlaylistSort.KEYS) {
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
+                                if (key == sortKey) {
+                                    vm.updateSettings { it.copy(playlistSortDir = if (sortDir == "asc") "desc" else "asc") }
+                                } else {
+                                    vm.updateSettings {
+                                        it.copy(playlistSortKey = key, playlistSortDir = dev.pulse.tauri.data.PlaylistSort.defaultDir(key))
+                                    }
+                                }
+                                showSort = false
+                            }.padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(vm.t("playlistSort" + key.replaceFirstChar { it.uppercase() }), Modifier.weight(1f))
+                            if (key == sortKey) Text(if (sortDir == "asc") "↑" else "↓")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSort = false }) { Text(vm.t("close")) } },
+        )
     }
 
     if (creating) {
@@ -184,6 +227,7 @@ fun PlaylistDetailScreen(vm: AppViewModel, playlistId: String, goBack: () -> Uni
     }
     val byId = data.tracks.associateBy { it.id }
     val tracks = playlist.trackIds.mapNotNull { byId[it] }
+    var showTrackSort by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -191,6 +235,9 @@ fun PlaylistDetailScreen(vm: AppViewModel, playlistId: String, goBack: () -> Uni
             Column(Modifier.weight(1f)) {
                 Text(playlist.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(vm.t("songsCount", tracks.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = { showTrackSort = true }) {
+                Icon(Icons.Filled.Sort, contentDescription = vm.t("sortPlaylistTracks"))
             }
             Button(onClick = { if (tracks.isNotEmpty()) { vm.playTrack(tracks.first(), tracks); openPlayer() } }) {
                 Text(vm.t("nowPlaying"))
@@ -227,6 +274,26 @@ fun PlaylistDetailScreen(vm: AppViewModel, playlistId: String, goBack: () -> Uni
                 }
             }
         }
+    }
+
+    if (showTrackSort) {
+        AlertDialog(
+            onDismissRequest = { showTrackSort = false },
+            title = { Text(vm.t("sortPlaylistTracks")) },
+            text = {
+                Column {
+                    for (key in dev.pulse.tauri.data.SortTracks.KEYS) {
+                        TextButton(onClick = {
+                            val sorted = dev.pulse.tauri.data.SortTracks.sort(tracks, key, "asc")
+                            vm.setPlaylistTrackIds(playlist.id, sorted.map { it.id })
+                            showTrackSort = false
+                            vm.showToast(vm.t("sortApplied"))
+                        }) { Text(vm.t("sort" + key.replaceFirstChar { it.uppercase() })) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showTrackSort = false }) { Text(vm.t("close")) } },
+        )
     }
 }
 

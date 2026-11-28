@@ -30,25 +30,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(vm: AppViewModel, goBack: () -> Unit, goScanner: () -> Unit) {
     val data by vm.data.collectAsStateWithLifecycle()
     val s = data.settings
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var confirmReset by remember { mutableStateOf(false) }
     var confirmClearAll by remember { mutableStateOf(false) }
-    var updateNote by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -130,25 +124,9 @@ fun SettingsScreen(vm: AppViewModel, goBack: () -> Unit, goScanner: () -> Unit) 
         ActionRow(
             icon = Icons.Filled.Refresh,
             title = vm.t("checkForUpdates"),
-            desc = vm.t("scanFoldersDesc"),
-            onClick = {
-                scope.launch {
-                    val latest = UpdateChecker.fetchLatest()
-                    updateNote = when {
-                        latest == null -> vm.t("updateCheckFailed")
-                        dev.pulse.tauri.data.VersionCompare.compare(latest, UpdateChecker.CURRENT_VERSION) > 0 ->
-                            "${vm.t("updateAvailable")}: v$latest"
-                        else -> vm.t("updateUpToDate")
-                    }
-                    if (latest != null && dev.pulse.tauri.data.VersionCompare.compare(latest, UpdateChecker.CURRENT_VERSION) > 0) {
-                        context.startActivity(vm.openUpdatePage())
-                    }
-                }
-            },
+            desc = vm.t("autoUpdateDesc"),
+            onClick = { vm.checkForUpdateNow() },
         )
-        if (updateNote != null) {
-            Text(updateNote!!, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.primary)
-        }
         ActionRow(icon = Icons.Filled.Folder, title = vm.t("scanFolders"), desc = vm.t("scanFoldersDesc"), onClick = goScanner)
 
         SectionTitle(vm.t("other"))

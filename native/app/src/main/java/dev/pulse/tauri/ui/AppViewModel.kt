@@ -80,6 +80,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _updateHint = MutableStateFlow<String?>(null)
     val updateHint: StateFlow<String?> = _updateHint.asStateFlow()
 
+    private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
+
     /** A MediaStore delete consent waiting for the user (system dialog). */
     private val _deleteConsent = MutableStateFlow<Pair<PendingIntent, Track>?>(null)
     val deleteConsent: StateFlow<Pair<PendingIntent, Track>?> = _deleteConsent.asStateFlow()
@@ -519,6 +522,61 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /* ------------------------------ in-app update ------------------------------ */
+
+    /** Check now and, if a newer release exists, move to Available. */
+    fun checkForUpdateNow() {
+        viewModelScope.launch {
+            _updateState.value = UpdateState.Checking
+            val info = Updater.fetchUpdate()
+            _updateState.value = if (info != null) UpdateState.Available(info) else UpdateState.UpToDate
+        }
+    }
+
+    /** Download the available update inside the app (with progress). */
+    fun startUpdateDownload() {
+        val state = _updateState.value
+        val info = when (state) {
+            is UpdateState.Available -> state.info
+            is UpdateState.Failed -> state.info
+            else -> null
+        } ?: run {
+            checkForUpdateNow()
+            return
+        }
+        viewModelScope.launch {
+            _updateState.value = UpdateState.Downloading(info, 0)
+            val file = Updater.download(getApplication(), info) { pct ->
+                _updateState.value = UpdateState.Downloading(info, pct)
+            }
+            _updateState.value = if (file != null) {
+                UpdateState.Downloaded(info, file)
+            } else {
+                UpdateState.Failed(info, t("updateDownloadFailed"))
+            }
+        }
+    }
+
+    /** The system installer intent for a downloaded update, or null. */
+    fun updateInstallIntent(): Intent? {
+        val state = _updateState.value as? UpdateState.Downloaded ?: return null
+        val ctx = getApplication<Application>()
+        return if (Updater.canInstall(ctx)) {
+            Updater.installIntent(ctx, state.file)
+        } else {
+            null
+        }
+    }
+
+    fun unknownSourcesIntent(): Intent =
+        Updater.unknownSourcesSettingsIntent(getApplication())
+
+    fun canInstallUpdates(): Boolean = Updater.canInstall(getApplication())
+
+    fun resetUpdateState() {
+        _updateState.value = UpdateState.Idle
+    }
+
     /* ------------------------------ update hint ------------------------------ */
 
     fun dismissUpdateHint() {
@@ -527,6 +585,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _updateHint.value = null
     }
 
-    fun openUpdatePage(): Intent =
-        Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.RELEASES_PAGE))
+}
+
+sealed interface UpdateState {
+    data object Idle : UpdateState
+    data object Checking : UpdateState
+    data object UpToDate : UpdateState
+    data class Available(val info: ReleaseInfo) : UpdateState
+    data class Downloading(val info: ReleaseInfo, val percent: Int) : UpdateState
+    data class Downloaded(val info: ReleaseInfo, val file: java.io.File) : UpdateState
+    data class Failed(val info: ReleaseInfo?, val message: String) : UpdateState
 }

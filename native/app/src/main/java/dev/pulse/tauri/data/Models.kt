@@ -38,6 +38,8 @@ data class Settings(
     val shuffleEnabled: Boolean = false,
     val librarySortKey: String = "title",
     val librarySortDir: String = "asc",
+    val playlistSortKey: String = "recent",
+    val playlistSortDir: String = "desc",
     val monitoredFolders: List<String> = emptyList(),
     val autoUpdateEnabled: Boolean = true,
     val locale: String = "zh-TW",
